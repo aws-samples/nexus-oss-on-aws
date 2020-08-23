@@ -1,0 +1,37 @@
+{
+  "name": "sonatype-nexus3",
+  "version": "0.1.0",
+  "bin": {
+    "sonatype-nexus3": "bin/sonatype-nexus3.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w",
+    "test": "jest",
+    "cdk": "cdk",
+    "init": "npm i && npx cdk bootstrap",
+    "deploy": "npx cdk deploy",
+    "cleanup": "npx cdk destroy",
+    "release": "npm run build && npm run test"
+  },
+  "devDependencies": {
+    "@aws-cdk/assert": "1.56.0",
+    "@types/jest": "^25.2.1",
+    "@types/node": "10.17.5",
+    "aws-cdk": "1.56.0",
+    "jest": "^25.5.0",
+    "ts-jest": "^25.3.1",
+    "ts-node": "^8.10.2",
+    "typescript": "~3.7.2"
+  },
+  "dependencies": {
+    "@aws-cdk/aws-certificatemanager": "^1.56.0",
+    "@aws-cdk/aws-efs": "^1.56.0",
+    "@aws-cdk/aws-eks": "^1.56.0",
+    "@aws-cdk/aws-route53": "^1.56.0",
+    "@aws-cdk/core": "1.56.0",
+    "js-yaml": "^3.14.0",
+    "source-map-support": "^0.5.16",
+    "sync-request": "^6.1.0"
+  }
+}
