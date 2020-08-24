@@ -15,21 +15,22 @@
     "release": "npm run build && npm run test"
   },
   "devDependencies": {
-    "@aws-cdk/assert": "1.56.0",
+    "@aws-cdk/assert": "1.60.0",
     "@types/jest": "^25.2.1",
     "@types/node": "10.17.5",
-    "aws-cdk": "1.56.0",
+    "aws-cdk": "1.60.0",
     "jest": "^25.5.0",
     "ts-jest": "^25.3.1",
     "ts-node": "^8.10.2",
-    "typescript": "~3.7.2"
+    "typescript": "~3.7.2",
+    "lodash": ">=4.17.19"
   },
   "dependencies": {
-    "@aws-cdk/aws-certificatemanager": "^1.56.0",
-    "@aws-cdk/aws-efs": "^1.56.0",
-    "@aws-cdk/aws-eks": "^1.56.0",
-    "@aws-cdk/aws-route53": "^1.56.0",
-    "@aws-cdk/core": "1.56.0",
+    "@aws-cdk/aws-certificatemanager": "^1.60.0",
+    "@aws-cdk/aws-efs": "^1.60.0",
+    "@aws-cdk/aws-eks": "^1.60.0",
+    "@aws-cdk/aws-route53": "^1.60.0",
+    "@aws-cdk/core": "1.60.0",
     "js-yaml": "^3.14.0",
     "source-map-support": "^0.5.16",
     "sync-request": "^6.1.0"
