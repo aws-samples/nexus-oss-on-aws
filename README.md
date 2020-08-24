@@ -7,6 +7,9 @@ Deploy Sonatype Nexus3 via Helm on EKS.
 - Use external DNS to create record in Route53 for ingress domain name 
 - Use ACM to get certificate of domain name
 
+## Architecture diagram
+![architecture diagram](arch.png)
+
 ## Usage
 
 ### Prerequisites
@@ -29,6 +32,9 @@ npm run deploy -- -c domainName=<the hostname of nexus3 deployment>
 npm run deploy -- -c domainName=<nexus.mydomain.com> -c r53Domain=<mydomain.com>
 ```
 
+### Default login
+Check [installation guide of Helm chart sonatype-nexus](https://github.com/Oteemo/charts/tree/master/charts/sonatype-nexus#installing-the-chart)
+
 ## Security
 
 See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more information.
@@ -40,7 +46,8 @@ This library is licensed under the MIT-0 License. See the LICENSE file.
 Also this application uses below open source projects,
 
 - [Nexus OSS](https://github.com/sonatype/nexus-public)
-- [travelaudience/kubernetes-nexus](https://github.com/travelaudience/kubernetes-nexus/) - [Oteemo/charts](https://github.com/Oteemo/charts)
+- [travelaudience/kubernetes-nexus](https://github.com/travelaudience/kubernetes-nexus/) 
+- [Oteemo/charts](https://github.com/Oteemo/charts)
 - [aws-alb-ingress-controller](https://github.com/kubernetes-sigs/aws-alb-ingress-controller)
 - [aws-efs-csi-driver](https://github.com/kubernetes-sigs/aws-efs-csi-driver)
 - [external-dns](https://github.com/kubernetes-sigs/external-dns)
