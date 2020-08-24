@@ -84,6 +84,23 @@ describe('Nexus OSS stack', () => {
     });
   });
 
+  test('EKS Stack is created', () => {
+    expect(stack).toHaveResourceLike('Custom::AWSCDK-EKS-Cluster', {
+      Config:{
+        version: "1.17"
+      }
+    });
+  });
+
+  test('Nexus Helm Chat is created', () => {
+    expect(stack).toHaveResourceLike('Custom::AWSCDK-EKS-HelmChart', {
+      Release: 'nexus3',
+      Chart: 'sonatype-nexus',
+      Namespace: 'default',
+      Repository: 'https://oteemo.github.io/charts/',
+    });
+  });
+
 });
 
 function overrideStackWithContextDomainName(app: cdk.App, stack: cdk.Stack, 

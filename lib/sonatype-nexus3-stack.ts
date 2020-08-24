@@ -14,15 +14,15 @@ export class SonatypeNexus3Stack extends cdk.Stack {
 
     // deploy sonatype-nexus3 chart
     const domainName = this.node.tryGetContext('domainName');
-    if (!domainName)
-      throw new Error('Must specify the custom domain name.');
-
     const stack = cdk.Stack.of(this);
 
     var hostedZone = null;
     var certificate: certmgr.Certificate | undefined;
     const r53Domain = this.node.tryGetContext('r53Domain');
     if (r53Domain) {
+      if (!domainName)
+        throw new Error('Must specify the custom domain name.');
+
       hostedZone = route53.HostedZone.fromLookup(this, 'R53HostedZone', {
         domainName: r53Domain,
         privateZone: false,
@@ -358,7 +358,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
     }
 
     const nexus3ChartName = 'nexus3';
-    const nexus3ChartVersion = '2.1.0';
+    const nexus3ChartVersion = '2.7.0';
     const nexus3Chart = cluster.addChart('Nexus3', {
       chart: 'sonatype-nexus',
       repository: 'https://oteemo.github.io/charts/',
@@ -372,7 +372,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
           enabled: true,
         },
         nexus: {
-          imageTag: '3.23.0',
+          imageTag: '3.25.1',
           resources: {
             requests: {
               cpu: '256m',
@@ -387,7 +387,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
           },
         },
         nexusProxy: {
-          enabled: true,
+          enabled: false,
           port: nexusPort,
           env: {
             nexusHttpHost: domainName
@@ -411,6 +411,20 @@ export class SonatypeNexus3Stack extends cdk.Stack {
           tls: {
             enabled: false,
           },
+          rules: [
+          {
+            http: {
+              paths: [
+                {
+                  backend: {
+                    serviceName: `${nexus3ChartName}-sonatype-nexus`,
+                    servicePort: nexusPort
+                  }
+                }
+              ]
+            }
+          }
+          ],
         },
         serviceAccount: {
           create: false,
