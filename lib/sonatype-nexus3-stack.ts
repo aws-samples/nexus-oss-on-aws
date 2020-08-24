@@ -146,7 +146,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       .filter((rbac: any) => { return rbac['kind'] != 'ServiceAccount' });
     const albDeployment = yaml.safeLoad(request('GET', `${albBaseResourceBaseUrl}alb-ingress-controller.yaml`).getBody());
 
-    const albResources = cluster.addResource('aws-alb-ingress-controller', ...rbacRoles, albDeployment);
+    const albResources = cluster.addManifest('aws-alb-ingress-controller', ...rbacRoles, albDeployment);
     const albResourcePatch = new eks.KubernetesPatch(this, `alb-ingress-controller-patch-${albIngressControllerVersion}`, {
       cluster,
       resourceName: "deployment/alb-ingress-controller",
@@ -207,7 +207,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
     fileSystem.connections.allowDefaultPortFrom(ec2.Peer.ipv4(vpc.vpcCidrBlock),
       'allow access efs from inside vpc');
     const efsClass = 'efs-sc';
-    cluster.addResource('efs-storageclass',
+    cluster.addManifest('efs-storageclass',
       {
         kind: 'StorageClass',
         apiVersion: 'storage.k8s.io/v1',
@@ -216,7 +216,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
         },
         provisioner: 'efs.csi.aws.com'
       });
-    const efsPV = cluster.addResource('efs-pv', {
+    const efsPV = cluster.addManifest('efs-pv', {
       apiVersion: 'v1',
       kind: 'PersistentVolume',
       metadata: {
@@ -264,7 +264,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       'alb.ingress.kubernetes.io/tags': 'app=nexus3',
       'alb.ingress.kubernetes.io/subnets': vpc.publicSubnets.map(subnet => subnet.subnetId).join(','),
     };
-    var externalDNSResource : eks.KubernetesResource;
+    var externalDNSResource : cdk.Construct;
     if (certificate) {
       Object.assign(albOptions, {
         'alb.ingress.kubernetes.io/certificate-arn': certificate.certificateArn,
@@ -323,7 +323,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
             return res;
           });
 
-      const externalDNS = cluster.addResource('external-dns', ...externalDNSResources);
+      const externalDNS = cluster.addManifest('external-dns', ...externalDNSResources);
       externalDNS.node.addDependency(externalDNSServiceAccount);
 
       const externalDNSPatch = new eks.KubernetesPatch(this, `external-dns-patch-${albIngressControllerVersion}`, {
