@@ -1,12 +1,16 @@
 import * as cdk from '@aws-cdk/core';
 const assert = require('assert').strict;
-import certmgr = require("@aws-cdk/aws-certificatemanager");
-import eks = require('@aws-cdk/aws-eks');
-import ec2 = require('@aws-cdk/aws-ec2');
+import * as certmgr from "@aws-cdk/aws-certificatemanager";
+import * as eks from '@aws-cdk/aws-eks';
+import * as ec2 from '@aws-cdk/aws-ec2';
 import * as efs from '@aws-cdk/aws-efs';
-import iam = require('@aws-cdk/aws-iam');
-import s3 = require('@aws-cdk/aws-s3');
-import route53 = require('@aws-cdk/aws-route53');
+import * as iam from '@aws-cdk/aws-iam';
+import * as lambda from '@aws-cdk/aws-lambda';
+import * as lambda_python from '@aws-cdk/aws-lambda-python';
+import * as logs from '@aws-cdk/aws-logs';
+import * as path from 'path';
+import * as s3 from '@aws-cdk/aws-s3';
+import * as route53 from '@aws-cdk/aws-route53';
 
 export class SonatypeNexus3Stack extends cdk.Stack {
   constructor(scope: cdk.Construct, id: string, props?: cdk.StackProps) {
@@ -34,19 +38,19 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       });
     }
     let vpc!: ec2.IVpc;
-    let createNewVpc:boolean = this.node.tryGetContext('createNewVpc') ?? false
-    if (createNewVpc){
-      vpc = new ec2.Vpc(this,'NexusVpc',{
+    let createNewVpc: boolean = this.node.tryGetContext('createNewVpc') ?? false
+    if (createNewVpc) {
+      vpc = new ec2.Vpc(this, 'NexusVpc', {
         maxAzs: 2,
-        natGateways:1,
+        natGateways: 1,
       })
     }
-    else{
-       vpc = ec2.Vpc.fromLookup(this, 'vpc', {
+    else {
+      vpc = ec2.Vpc.fromLookup(this, 'vpc', {
         isDefault: true
       });
-      if (this.azOfSubnets(vpc.publicSubnets) <= 1 || 
-      this.azOfSubnets(vpc.privateSubnets) <= 1) {
+      if (this.azOfSubnets(vpc.publicSubnets) <= 1 ||
+        this.azOfSubnets(vpc.privateSubnets) <= 1) {
         throw new Error(`VPC '${vpc.vpcId}' must have both public and private subnets cross two AZs at least.`);
       }
     }
@@ -93,7 +97,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
         nexusBlobBucket.arnForObjects('*')
       ],
     });
-    
+
     const nodeRole = new iam.Role(this, 'NodeRole', {
       assumedBy: new iam.CompositePrincipal(
         new iam.ServicePrincipal('ec2.amazonaws.com')),
@@ -111,20 +115,20 @@ export class SonatypeNexus3Stack extends cdk.Stack {
 
     if (isFargetEnabled) {
       cluster.addFargateProfile('FargetProfile', {
-        selectors: [ 
-          { 
+        selectors: [
+          {
             namespace: 'kube-system',
             labels: {
               'k8s-app': 'kube-dns',
             }
-          } 
+          }
         ]
       });
     }
-    
+
     cluster.addNodegroup('nodegroup', {
       nodegroupName: 'nexus3',
-      instanceType: new ec2.InstanceType( this.node.tryGetContext('instanceType') ?? 'm5.large'),
+      instanceType: new ec2.InstanceType(this.node.tryGetContext('instanceType') ?? 'm5.large'),
       minSize: 1,
       maxSize: 3,
       // Have to bind IAM role to node due to Nexus3 uses old AWS Java SDK not supporting IRSA
@@ -273,7 +277,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       'alb.ingress.kubernetes.io/tags': 'app=nexus3',
       'alb.ingress.kubernetes.io/subnets': vpc.publicSubnets.map(subnet => subnet.subnetId).join(','),
     };
-    var externalDNSResource : cdk.Construct;
+    var externalDNSResource: cdk.Construct;
     if (certificate) {
       Object.assign(albOptions, {
         'alb.ingress.kubernetes.io/certificate-arn': certificate.certificateArn,
@@ -298,13 +302,13 @@ export class SonatypeNexus3Stack extends cdk.Stack {
         resources: ['*'],
       });
       const r53UpdateRecordPolicy = new iam.PolicyStatement({
-          effect: iam.Effect.ALLOW,
-          actions: [
-            'route53:ChangeResourceRecordSets',
-          ],
-  
-          resources: [hostedZone!.hostedZoneArn!],
-        });
+        effect: iam.Effect.ALLOW,
+        actions: [
+          'route53:ChangeResourceRecordSets',
+        ],
+
+        resources: [hostedZone!.hostedZoneArn!],
+      });
       externalDNSServiceAccount.addToPolicy(r53ListPolicy);
       externalDNSServiceAccount.addToPolicy(r53UpdateRecordPolicy!);
 
@@ -313,24 +317,24 @@ export class SonatypeNexus3Stack extends cdk.Stack {
           .getBody('utf-8').replace('external-dns-test.my-org.com', r53Domain)
           .replace('0.7.1', '0.7.2') // pick external-dns 0.7.2 with Route53 fix in AWS China
           .replace('my-identifier', hostedZone!.hostedZoneId))
-          .filter((res: any) => { return res['kind'] != 'ServiceAccount' })
-          .map((res: any) => {
-            if (res['kind'] === 'ClusterRole') {
-              res['rules'].push({
-                apiGroups: [''],
-                resources: [ 'endpoints' ],
-                verbs: ["get","watch","list"]
-              });
-            } else if (res['kind'] === 'Deployment' && stack.region.startsWith('cn-')) {
-              res['spec']['template']['spec']['containers'][0]['env'] = [
-                {
-                  name: 'AWS_REGION',
-                  value: stack.region,
-                }
-              ];
-            }
-            return res;
-          });
+        .filter((res: any) => { return res['kind'] != 'ServiceAccount' })
+        .map((res: any) => {
+          if (res['kind'] === 'ClusterRole') {
+            res['rules'].push({
+              apiGroups: [''],
+              resources: ['endpoints'],
+              verbs: ["get", "watch", "list"]
+            });
+          } else if (res['kind'] === 'Deployment' && stack.region.startsWith('cn-')) {
+            res['spec']['template']['spec']['containers'][0]['env'] = [
+              {
+                name: 'AWS_REGION',
+                value: stack.region,
+              }
+            ];
+          }
+          return res;
+        });
 
       const externalDNS = cluster.addManifest('external-dns', ...externalDNSResources);
       externalDNS.node.addDependency(externalDNSServiceAccount);
@@ -366,8 +370,79 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       externalDNSResource = externalDNSPatch;
     }
 
+    const enableAutoConfigured: boolean = this.node.tryGetContext('enableAutoConfigured') || false;
     const nexus3ChartName = 'nexus3';
     const nexus3ChartVersion = '2.1.0';
+    let nexus3ChartProperties: {[ key: string ] : any} = {
+      statefulset: {
+        enabled: true,
+      },
+      nexus: {
+        imageTag: '3.23.0',
+        resources: {
+          requests: {
+            cpu: '256m',
+            memory: '4800Mi',
+          }
+        },
+        livenessProbe: {
+          path: healthcheckPath,
+        },
+        nodeSelector: {
+          usage: 'nexus3',
+        },
+      },
+      nexusProxy: {
+        enabled: true,
+        port: nexusPort,
+        env: {
+          nexusHttpHost: domainName
+        }
+      },
+      persistence: {
+        enabled: true,
+        storageClass: efsClass,
+        accessMode: 'ReadWriteMany'
+      },
+      nexusBackup: {
+        enabled: false,
+        persistence: {
+          enabled: false,
+        },
+      },
+      ingress: {
+        enabled: true,
+        path: '/*',
+        annotations: albOptions,
+        tls: {
+          enabled: false,
+        },
+      },
+      serviceAccount: {
+        create: false,
+      }
+    };
+    if (enableAutoConfigured) {
+      // enalbe script feature of nexus3
+      nexus3ChartProperties = {
+        ...nexus3ChartProperties,
+        config: {
+          enabled: true,
+          data: {
+            'nexus.properties': 'nexus.scripts.allowCreation=true'
+          }
+        },
+        deployment: {
+          additionalVolumeMounts: [
+            {
+              mountPath: '/nexus-data/etc/nexus.properties',
+              subPath: 'nexus.properties',
+              name: 'sonatype-nexus-conf'
+            }
+          ]
+        },
+      };
+    }
     const nexus3Chart = cluster.addChart('Nexus3', {
       chart: 'sonatype-nexus',
       repository: 'https://oteemo.github.io/charts/',
@@ -376,56 +451,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       version: nexus3ChartVersion,
       wait: stack.region.startsWith('cn-') ? false : true,
       timeout: stack.region.startsWith('cn-') ? undefined : cdk.Duration.minutes(15),
-      values: {
-        statefulset: {
-          enabled: true,
-        },
-        nexus: {
-          imageTag: '3.23.0',
-          resources: {
-            requests: {
-              cpu: '256m',
-              memory: '4800Mi',
-            }
-          },
-          livenessProbe: {
-            path: healthcheckPath,
-          },
-          nodeSelector: {
-            usage: 'nexus3',
-          },
-        },
-        nexusProxy: {
-          enabled: true,
-          port: nexusPort,
-          env: {
-            nexusHttpHost: domainName
-          }
-        },
-        persistence: {
-          enabled: true,
-          storageClass: efsClass,
-          accessMode: 'ReadWriteMany'
-        },
-        nexusBackup: {
-          enabled: false,
-          persistence: {
-            enabled: false,
-          },
-        },
-        ingress: {
-          enabled: true,
-          path: '/*',
-          annotations: albOptions,
-          tls: {
-            enabled: false,
-          },
-        },
-        serviceAccount: {
-          create: false,
-          // name: nexusServiceAccount.serviceAccountName,
-        }
-      }
+      values: nexus3ChartProperties,
     });
     nexus3Chart.node.addDependency(nexusServiceAccount);
     nexus3Chart.node.addDependency(albResourcePatch);
@@ -488,6 +514,34 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       });
       nexus3IngressPatch.node.addDependency(nexus3Chart);
     }
+    if (enableAutoConfigured) {
+      let nexusEndpointHostname: string | undefined;
+      if (domainName)
+        nexusEndpointHostname = `https://${domainName}`;
+      if (nexusEndpointHostname) {
+        const autoConfigureFunc = new lambda_python.PythonFunction(this, 'Neuxs3AutoCofingure', {
+          entry: path.join(__dirname, '../lambda.d/nexuspreconfigure'),
+          index: 'index.py',
+          handler: 'handler',
+          runtime: lambda.Runtime.PYTHON_3_8,
+          logRetention: logs.RetentionDays.ONE_MONTH,
+          timeout: cdk.Duration.minutes(5),
+          vpc: vpc,
+        });
+
+        const nexus3AutoConfigureCR = new cdk.CustomResource(this, 'CustomResource', {
+          serviceToken: autoConfigureFunc.functionArn,
+          resourceType: 'Custom::Nexus3AutoConfigure',
+          properties: {
+            Username: 'admin',
+            Password: 'admin123',
+            Endpoint: nexusEndpointHostname,
+            S3BucketName: nexusBlobBucket.bucketName,
+          },
+        });
+        nexus3AutoConfigureCR.node.addDependency(nexus3Chart);
+      }
+    }
 
     new cdk.CfnOutput(this, 'nexus3-s3-bucket-blobstore', {
       value: `${nexusBlobBucket.bucketName}`,
@@ -495,7 +549,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
     });
   }
 
-  private azOfSubnets(subnets: ec2.ISubnet[]) : number {
+  private azOfSubnets(subnets: ec2.ISubnet[]): number {
     return new Set(subnets.map(subnet => subnet.availabilityZone)).size;
   }
 }
