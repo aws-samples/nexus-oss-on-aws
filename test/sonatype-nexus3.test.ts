@@ -86,7 +86,7 @@ describe('Nexus OSS stack', () => {
 
   test('EKS Stack is created', () => {
     expect(stack).toHaveResourceLike('Custom::AWSCDK-EKS-Cluster', {
-      Config:{
+      Config: {
         version: "1.17"
       }
     });
@@ -103,7 +103,7 @@ describe('Nexus OSS stack', () => {
 
 });
 
-function overrideStackWithContextDomainName(app: cdk.App, stack: cdk.Stack, 
+function overrideStackWithContextDomainName(app: cdk.App, stack: cdk.Stack,
   domainName: string | undefined, domainZone?: string) {
   app = new cdk.App({
     context: {
@@ -122,3 +122,27 @@ function overrideStackWithContextDomainName(app: cdk.App, stack: cdk.Stack,
   });
   return { app, stack };
 }
+
+
+describe('Test stack context', () => {
+  let app: cdk.App;
+  let stack: cdk.Stack;
+
+  test('Throw error if domainName is not specified', () => {
+    app = new cdk.App({
+      context: {
+        r53Domain: 'example.com',
+      }
+    });
+    const env = {
+      region: 'cn-north-1',
+      account: '1234567890xx',
+    }
+    expect(() => {
+      new SonatypeNexus3.SonatypeNexus3Stack(app, 'NexusStack', {
+        env,
+      })
+    }
+    ).toThrowError('Must specify the custom domain name.')
+  });
+});
