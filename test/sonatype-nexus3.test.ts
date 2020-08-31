@@ -101,7 +101,26 @@ describe('Nexus OSS stack', () => {
     });
   });
 
+  test('Throw error if domainName is not specified', () => {
+    app = new cdk.App({
+      context: {
+        r53Domain: 'example.com',
+      }
+    });
+    const env = {
+      region: 'cn-north-1',
+      account: '1234567890xx',
+    }
+    expect(() => {
+      new SonatypeNexus3.SonatypeNexus3Stack(app, 'NexusStack', {
+        env,
+      })
+    }
+    ).toThrowError('Must specify the custom domain name.')
+  });
+
 });
+
 
 function overrideStackWithContextDomainName(app: cdk.App, stack: cdk.Stack,
   domainName: string | undefined, domainZone?: string) {
@@ -122,27 +141,3 @@ function overrideStackWithContextDomainName(app: cdk.App, stack: cdk.Stack,
   });
   return { app, stack };
 }
-
-
-describe('Test stack context', () => {
-  let app: cdk.App;
-  let stack: cdk.Stack;
-
-  test('Throw error if domainName is not specified', () => {
-    app = new cdk.App({
-      context: {
-        r53Domain: 'example.com',
-      }
-    });
-    const env = {
-      region: 'cn-north-1',
-      account: '1234567890xx',
-    }
-    expect(() => {
-      new SonatypeNexus3.SonatypeNexus3Stack(app, 'NexusStack', {
-        env,
-      })
-    }
-    ).toThrowError('Must specify the custom domain name.')
-  });
-});
