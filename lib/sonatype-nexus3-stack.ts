@@ -8,8 +8,13 @@ import iam = require('@aws-cdk/aws-iam');
 import s3 = require('@aws-cdk/aws-s3');
 import route53 = require('@aws-cdk/aws-route53');
 
+interface ISonatypeNexus3Stack extends cdk.StackProps{
+  instanceType?: string;
+  createNewVpc?: boolean;
+}
+
 export class SonatypeNexus3Stack extends cdk.Stack {
-  constructor(scope: cdk.Construct, id: string, props?: cdk.StackProps) {
+  constructor(scope: cdk.Construct, id: string, props?: ISonatypeNexus3Stack) {
     super(scope, id, props);
 
     // deploy sonatype-nexus3 chart
@@ -33,13 +38,21 @@ export class SonatypeNexus3Stack extends cdk.Stack {
         validation: certmgr.CertificateValidation.fromDns(hostedZone),
       });
     }
-
-    const vpc = ec2.Vpc.fromLookup(this, 'vpc', {
-      isDefault: true
-    });
-    if (this.azOfSubnets(vpc.publicSubnets) <= 1 || 
+    let vpc!: ec2.IVpc;
+    if (props?.createNewVpc){
+      vpc = new ec2.Vpc(this,'newVpcForEKS',{
+        maxAzs: 2,
+        natGateways:1,
+      } ) 
+    }
+    else{
+       vpc = ec2.Vpc.fromLookup(this, 'vpc', {
+        isDefault: true
+      });
+      if (this.azOfSubnets(vpc.publicSubnets) <= 1 || 
       this.azOfSubnets(vpc.privateSubnets) <= 1) {
         throw new Error(`VPC '${vpc.vpcId}' must have both public and private subnets cross two AZs at least.`);
+      }
     }
 
     const clusterAdmin = new iam.Role(this, 'AdminRole', {
@@ -115,7 +128,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
     
     cluster.addNodegroup('nodegroup', {
       nodegroupName: 'nexus3',
-      instanceType: new ec2.InstanceType('m5.large'),
+      instanceType: new ec2.InstanceType( props?.instanceType ?? 'm5.large'),
       minSize: 1,
       maxSize: 3,
       // Have to bind IAM role to node due to Nexus3 uses old AWS Java SDK not supporting IRSA
