@@ -9,7 +9,17 @@ import s3 = require('@aws-cdk/aws-s3');
 import route53 = require('@aws-cdk/aws-route53');
 
 interface ISonatypeNexus3Stack extends cdk.StackProps{
+  /**
+   * default EC2 instance type
+   * 
+   * @default - m5.large
+   */
   instanceType?: string;
+  /**
+   * create new Vpc or not 
+   * 
+   * @default - false
+   */
   createNewVpc?: boolean;
 }
 
