@@ -8,23 +8,8 @@ import iam = require('@aws-cdk/aws-iam');
 import s3 = require('@aws-cdk/aws-s3');
 import route53 = require('@aws-cdk/aws-route53');
 
-interface ISonatypeNexus3Stack extends cdk.StackProps{
-  /**
-   * default EC2 instance type
-   * 
-   * @default - m5.large
-   */
-  instanceType?: string;
-  /**
-   * create new Vpc or not 
-   * 
-   * @default - false
-   */
-  createNewVpc?: boolean;
-}
-
 export class SonatypeNexus3Stack extends cdk.Stack {
-  constructor(scope: cdk.Construct, id: string, props?: ISonatypeNexus3Stack) {
+  constructor(scope: cdk.Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
     // deploy sonatype-nexus3 chart
@@ -49,7 +34,8 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       });
     }
     let vpc!: ec2.IVpc;
-    if (props?.createNewVpc){
+    let createNewVpc:boolean = this.node.tryGetContext('createNewVpc') ?? false
+    if (createNewVpc){
       vpc = new ec2.Vpc(this,'newVpcForEKS',{
         maxAzs: 2,
         natGateways:1,
@@ -138,7 +124,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
     
     cluster.addNodegroup('nodegroup', {
       nodegroupName: 'nexus3',
-      instanceType: new ec2.InstanceType( props?.instanceType ?? 'm5.large'),
+      instanceType: new ec2.InstanceType( this.node.tryGetContext('instanceType') ?? 'm5.large'),
       minSize: 1,
       maxSize: 3,
       // Have to bind IAM role to node due to Nexus3 uses old AWS Java SDK not supporting IRSA

@@ -11,13 +11,4 @@ new SonatypeNexus3Stack(app, 'SonatypeNexus3OnEKS', {
   },
 });
 
-new SonatypeNexus3Stack(app, 'SonatypeNexus3OnEKS2', {
-  env: {
-    region: process.env.CDK_DEFAULT_REGION,
-    account: process.env.CDK_DEFAULT_ACCOUNT,
-  },
-  instanceType: 'm5.xlarge',
-  createNewVpc: true,
-});
-
 cdk.Tag.add(app, 'app', 'nexus3');
