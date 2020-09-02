@@ -120,7 +120,11 @@ describe('Nexus OSS stack and instanceType newVpc', () => {
   });
 
   test('Nexus Stack have new vpc and custom instanceType', () => {
-    expect(stack).toHaveResourceLike('AWS::CloudFormation::Stack', {
+    expect(stack).toHaveResource(`AWS::EC2::VPC`,{
+      CidrBlock: "10.0.0.0/16",
+    });
+    expect(stack).toHaveResource(`AWS::EKS::Nodegroup`,{
+      InstanceTypes: ["m5.xlarge"]
     });
   });
 
