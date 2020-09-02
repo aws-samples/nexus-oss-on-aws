@@ -36,10 +36,10 @@ export class SonatypeNexus3Stack extends cdk.Stack {
     let vpc!: ec2.IVpc;
     let createNewVpc:boolean = this.node.tryGetContext('createNewVpc') ?? false
     if (createNewVpc){
-      vpc = new ec2.Vpc(this,'newVpcForEKS',{
+      vpc = new ec2.Vpc(this,'NexusVpc',{
         maxAzs: 2,
         natGateways:1,
-      } ) 
+      })
     }
     else{
        vpc = ec2.Vpc.fromLookup(this, 'vpc', {

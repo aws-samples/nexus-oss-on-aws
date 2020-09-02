@@ -87,6 +87,25 @@ describe('Nexus OSS stack', () => {
     });
   });
 
+  test('Create Nexus Stack with new vpc and custom instanceType', () => {
+    // not mocking vpc provider when creating a new vpc 
+    mock.restoreContextProvider(previous);
+    
+    const context = {
+      domainName: 'example.com',
+      instanceType: 'm5.xlarge',
+      createNewVpc: true, 
+    };
+    ({ app, stack } = initializeStackWithContextsAndEnvs(app, stack, context));
+
+    expect(stack).toHaveResource(`AWS::EC2::VPC`,{
+      CidrBlock: "10.0.0.0/16",
+    });
+    expect(stack).toHaveResource(`AWS::EKS::Nodegroup`,{
+      InstanceTypes: ["m5.xlarge"]
+    });
+  });
+
 });
 
 function initializeStackWithContextsAndEnvs(app: cdk.App, stack: cdk.Stack, 
@@ -100,52 +119,6 @@ function initializeStackWithContextsAndEnvs(app: cdk.App, stack: cdk.Stack,
       region: 'cn-north-1',
       account: '1234567890xx',
     },
-  });
-  return { app, stack };
-}
-
-describe('Nexus OSS stack and instanceType newVpc', () => {
-  let app: cdk.App;
-  let stack: cdk.Stack;
-  let previous: (scope: cdk.Construct, options: cdk.GetContextValueOptions) => cdk.GetContextValueResult;
-
-  afterAll(() => {
-    mock.restoreContextProvider(previous);
-  });
-
-  beforeEach(() => {
-    ({ app, stack } = overrideStackWithContextNewVpcInstanceType(app, stack, 'example.com','m5.xlarge', true));
-  });
-
-  test('Nexus Stack have new vpc and custom instanceType', () => {
-    expect(stack).toHaveResource(`AWS::EC2::VPC`,{
-      CidrBlock: "10.0.0.0/16",
-    });
-    expect(stack).toHaveResource(`AWS::EKS::Nodegroup`,{
-      InstanceTypes: ["m5.xlarge"]
-    });
-  });
-
-});
-
-function overrideStackWithContextNewVpcInstanceType(app: cdk.App, stack: cdk.Stack, 
-  domainName: string | undefined, instanceType?: string | undefined, createNewVpc?: boolean | undefined, domainZone?: string ) {
-  app = new cdk.App({
-    context: {
-      domainName: domainName,
-      domainZone,
-      instanceType,
-      createNewVpc,
-    }
-  });
-
-  const env = {
-    region: 'ap-northeast-1',
-    account: '1234567890xx',
-  }
-
-  stack = new SonatypeNexus3.SonatypeNexus3Stack(app, 'NexusStack', {
-    env,
   });
   return { app, stack };
 }
