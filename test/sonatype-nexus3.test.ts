@@ -76,7 +76,10 @@ describe('Nexus OSS stack', () => {
   });
 
   beforeEach(() => {
-    ({ app, stack } = overrideStackWithContextDomainName(app, stack, 'example.com'));
+    const context = {
+      domainName: 'example.com',
+    };
+    ({ app, stack } = initializeStackWithContextsAndEnvs(app, stack, context));
   });
 
   test('Nexus Stack is created', () => {
@@ -86,22 +89,17 @@ describe('Nexus OSS stack', () => {
 
 });
 
-function overrideStackWithContextDomainName(app: cdk.App, stack: cdk.Stack, 
-  domainName: string | undefined, domainZone?: string) {
+function initializeStackWithContextsAndEnvs(app: cdk.App, stack: cdk.Stack, 
+  context: {} | undefined, env?: {} | undefined) {
   app = new cdk.App({
-    context: {
-      domainName: domainName,
-      domainZone,
-    }
+    context,
   });
 
-  const env = {
-    region: 'cn-north-1',
-    account: '1234567890xx',
-  }
-
   stack = new SonatypeNexus3.SonatypeNexus3Stack(app, 'NexusStack', {
-    env,
+    env: env ?? {
+      region: 'cn-north-1',
+      account: '1234567890xx',
+    },
   });
   return { app, stack };
 }
