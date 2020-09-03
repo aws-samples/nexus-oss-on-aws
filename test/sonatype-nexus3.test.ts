@@ -76,7 +76,10 @@ describe('Nexus OSS stack', () => {
   });
 
   beforeEach(() => {
-    ({ app, stack } = overrideStackWithContextDomainName(app, stack, 'example.com'));
+    const context = {
+      domainName: 'example.com',
+    };
+    ({ app, stack } = initializeStackWithContextsAndEnvs(app, stack, context));
   });
 
   test('Nexus Stack is created', () => {
@@ -84,42 +87,17 @@ describe('Nexus OSS stack', () => {
     });
   });
 
-});
-
-function overrideStackWithContextDomainName(app: cdk.App, stack: cdk.Stack, 
-  domainName: string | undefined, domainZone?: string) {
-  app = new cdk.App({
-    context: {
-      domainName: domainName,
-      domainZone,
-    }
-  });
-
-  const env = {
-    region: 'cn-north-1',
-    account: '1234567890xx',
-  }
-
-  stack = new SonatypeNexus3.SonatypeNexus3Stack(app, 'NexusStack', {
-    env,
-  });
-  return { app, stack };
-}
-
-describe('Nexus OSS stack and instanceType newVpc', () => {
-  let app: cdk.App;
-  let stack: cdk.Stack;
-  let previous: (scope: cdk.Construct, options: cdk.GetContextValueOptions) => cdk.GetContextValueResult;
-
-  afterAll(() => {
+  test('Create Nexus Stack with new vpc and custom instanceType', () => {
+    // not mocking vpc provider when creating a new vpc 
     mock.restoreContextProvider(previous);
-  });
+    
+    const context = {
+      domainName: 'example.com',
+      instanceType: 'm5.xlarge',
+      createNewVpc: true, 
+    };
+    ({ app, stack } = initializeStackWithContextsAndEnvs(app, stack, context));
 
-  beforeEach(() => {
-    ({ app, stack } = overrideStackWithContextNewVpcInstanceType(app, stack, 'example.com','m5.xlarge', true));
-  });
-
-  test('Nexus Stack have new vpc and custom instanceType', () => {
     expect(stack).toHaveResource(`AWS::EC2::VPC`,{
       CidrBlock: "10.0.0.0/16",
     });
@@ -130,24 +108,17 @@ describe('Nexus OSS stack and instanceType newVpc', () => {
 
 });
 
-function overrideStackWithContextNewVpcInstanceType(app: cdk.App, stack: cdk.Stack, 
-  domainName: string | undefined, instanceType?: string | undefined, createNewVpc?: boolean | undefined, domainZone?: string ) {
+function initializeStackWithContextsAndEnvs(app: cdk.App, stack: cdk.Stack, 
+  context: {} | undefined, env?: {} | undefined) {
   app = new cdk.App({
-    context: {
-      domainName: domainName,
-      domainZone,
-      instanceType,
-      createNewVpc,
-    }
+    context,
   });
 
-  const env = {
-    region: 'ap-northeast-1',
-    account: '1234567890xx',
-  }
-
   stack = new SonatypeNexus3.SonatypeNexus3Stack(app, 'NexusStack', {
-    env,
+    env: env ?? {
+      region: 'cn-north-1',
+      account: '1234567890xx',
+    },
   });
   return { app, stack };
 }
