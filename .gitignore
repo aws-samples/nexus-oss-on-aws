@@ -11,3 +11,6 @@ cdk.context.json
 # Parcel build directories
 .cache
 .build
+
+# py cache
+__pycache__/

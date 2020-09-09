@@ -1,0 +1,62 @@
+name: integration test of nexus preconfigure lambda
+
+on:
+  # Trigger the workflow on push or pull request,
+  # but only for the master branch
+  push:
+  pull_request:
+
+jobs:
+  lambda-integration-test:
+    name: Lambda Integaration Test
+
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [ubuntu-18.04, ubuntu-20.04]
+        python-version: [3.8]
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Use python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Replace Nexus properties
+      run: |
+        docker exec nexus sh -c "echo 'nexus.scripts.allowCreation=true' >> /nexus-data/etc/nexus.properties"
+    - name: Restart Nexus
+      uses: docker://docker
+      with:
+        args: docker restart nexus
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r lambda.d/nexuspreconfigure/requirements.txt
+        pip install -r lambda.d/nexuspreconfigure-integration-test/requirements.txt
+    - name: Fetch Nexus3 Password
+      id: nexus3-pass
+      run: |
+        bash lambda.d/nexuspreconfigure-integration-test/wait-for-nexus.sh
+        NEXUS_PASS=`docker exec nexus cat /nexus-data/admin.password`
+        echo "::set-output name=NEXUS_PASS::$NEXUS_PASS"
+    - name: Integration test
+      env:
+        NEXUS_PASS: ${{ steps.nexus3-pass.outputs.NEXUS_PASS }}
+      run: |
+        cd lambda.d/
+        pytest -m integration
+    
+    services:
+      nexus:
+        image: quay.io/travelaudience/docker-nexus:3.23.0
+        ports:
+          - 8081:8081
+        options: >-
+          --name nexus
+          --rm
+          --health-cmd "wget --server-response --spider --quiet 'http://localhost:8081' 2>&1"
+          --health-interval 10s
+          --health-timeout 3s
+          --health-retries 30
