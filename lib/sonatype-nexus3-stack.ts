@@ -65,7 +65,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       defaultCapacity: 0,
       kubectlEnabled: true,
       mastersRole: clusterAdmin,
-      version: eks.KubernetesVersion.V1_17,
+      version: eks.KubernetesVersion.V1_16,
       coreDnsComputeType: isFargetEnabled ? eks.CoreDnsComputeType.FARGATE : eks.CoreDnsComputeType.EC2,
     });
 
