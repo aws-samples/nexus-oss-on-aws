@@ -126,7 +126,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       });
     }
 
-    cluster.addNodegroup('nodegroup', {
+    cluster.addNodegroupCapacity('nodegroup', {
       nodegroupName: 'nexus3',
       instanceType: new ec2.InstanceType(this.node.tryGetContext('instanceType') ?? 'm5.large'),
       minSize: 1,
@@ -206,7 +206,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
     albResourcePatch.node.addDependency(albResources);
 
     // deploy EFS, EFS CSI driver, PV
-    const efsCSI = cluster.addChart('EFSCSIDriver', {
+    const efsCSI = cluster.addHelmChart('EFSCSIDriver', {
       chart: 'https://github.com/kubernetes-sigs/aws-efs-csi-driver/releases/download/v0.3.0/helm-chart.tgz',
     });
 
@@ -443,7 +443,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
         },
       };
     }
-    const nexus3Chart = cluster.addChart('Nexus3', {
+    const nexus3Chart = cluster.addHelmChart('Nexus3', {
       chart: 'sonatype-nexus',
       repository: 'https://oteemo.github.io/charts/',
       namespace: nexus3Namespace,
