@@ -147,6 +147,28 @@ describe('Nexus OSS stack', () => {
       ],
     }, ResourcePart.CompleteDefinition);
   });
+
+  test('AWS load baalancer controller helm chart is created', () => {
+    expect(stack).toHaveResourceLike('Custom::AWSCDK-EKS-HelmChart', {
+      "Release": "aws-load-balancer-controller",
+      "Chart": "aws-load-balancer-controller",
+      "Version": "1.0.8",
+      "Repository": "https://aws.github.io/eks-charts",
+    });
+  });
+
+  test('External dns resource is created when r53Domain is specified.', () => {
+    const context = {
+      domainName: 'example.com',
+      r53Domain: 'example.com',
+      region: 'cn-north-1',
+    };
+    ({ app, stack } = initializeStackWithContextsAndEnvs(app, stack, context));
+
+    expect(stack).toHaveResourceLike('Custom::AWSCDK-EKS-KubernetesResource', {
+      "Manifest": "[{\"apiVersion\":\"rbac.authorization.k8s.io/v1beta1\",\"kind\":\"ClusterRole\",\"metadata\":{\"name\":\"external-dns\"},\"rules\":[{\"apiGroups\":[\"\"],\"resources\":[\"services\"],\"verbs\":[\"get\",\"watch\",\"list\"]},{\"apiGroups\":[\"\"],\"resources\":[\"pods\"],\"verbs\":[\"get\",\"watch\",\"list\"]},{\"apiGroups\":[\"extensions\"],\"resources\":[\"ingresses\"],\"verbs\":[\"get\",\"watch\",\"list\"]},{\"apiGroups\":[\"\"],\"resources\":[\"nodes\"],\"verbs\":[\"list\"]},{\"apiGroups\":[\"\"],\"resources\":[\"endpoints\"],\"verbs\":[\"get\",\"watch\",\"list\"]}]},{\"apiVersion\":\"rbac.authorization.k8s.io/v1beta1\",\"kind\":\"ClusterRoleBinding\",\"metadata\":{\"name\":\"external-dns-viewer\"},\"roleRef\":{\"apiGroup\":\"rbac.authorization.k8s.io\",\"kind\":\"ClusterRole\",\"name\":\"external-dns\"},\"subjects\":[{\"kind\":\"ServiceAccount\",\"name\":\"external-dns\",\"namespace\":\"default\"}]},{\"apiVersion\":\"apps/v1\",\"kind\":\"Deployment\",\"metadata\":{\"name\":\"external-dns\"},\"spec\":{\"selector\":{\"matchLabels\":{\"app\":\"external-dns\"}},\"strategy\":{\"type\":\"Recreate\"},\"template\":{\"metadata\":{\"labels\":{\"app\":\"external-dns\"}},\"spec\":{\"serviceAccountName\":\"external-dns\",\"containers\":[{\"name\":\"external-dns\",\"image\":\"bitnami/external-dns:0.7.4\",\"args\":[\"--source=service\",\"--source=ingress\",\"--domain-filter=example.com\",\"--provider=aws\",\"--policy=upsert-only\",\"--aws-zone-type=public\",\"--registry=txt\",\"--txt-owner-id=nexus3\"],\"env\":[{\"name\":\"AWS_REGION\",\"value\":\"cn-north-1\"}]}],\"securityContext\":{\"fsGroup\":65534}}}}}]",
+    });
+  });
 });
 
 function initializeStackWithContextsAndEnvs(app: cdk.App, stack: cdk.Stack, 
