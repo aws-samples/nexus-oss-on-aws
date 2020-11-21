@@ -70,7 +70,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
     });
 
     const nexusBlobBucket = new s3.Bucket(this, `nexus3-blobstore`, {
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
     });
     const s3BucketPolicy = new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
@@ -139,71 +139,46 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       },
     });
 
-    const albIngressControllerVersion = 'v1.1.8';
-    const albBaseResourceBaseUrl = `https://raw.githubusercontent.com/kubernetes-sigs/aws-alb-ingress-controller/${albIngressControllerVersion}/docs/examples/`;
-    const albIngressControllerPolicyUrl = `${albBaseResourceBaseUrl}iam-policy.json`;
+    // install AWS load balancer via Helm charts
+    const awsLoadBalancerControllerVersion = 'v2.0.1';
+    const awsControllerBaseResourceBaseUrl = `https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/${awsLoadBalancerControllerVersion}/docs`;
+    const awsControllerPolicyUrl = `${awsControllerBaseResourceBaseUrl}/install/iam_policy${stack.region.startsWith('cn-') ? '_cn' : ''}.json`;
     const albNamespace = 'kube-system';
-    const albServiceAccount = cluster.addServiceAccount('alb-ingress-controller', {
-      name: 'alb-ingress-controller',
+    const albServiceAccount = cluster.addServiceAccount('aws-load-balancer-controller', {
+      name: 'aws-load-balancer-controller',
       namespace: albNamespace,
     });
 
     const request = require('sync-request');
-    const policyJson = request('GET', albIngressControllerPolicyUrl).getBody();
+    const yaml = require('js-yaml');
+
+    const policyJson = request('GET', awsControllerPolicyUrl).getBody();
     ((JSON.parse(policyJson))['Statement'] as []).forEach((statement, idx, array) => {
       albServiceAccount.addToPolicy(iam.PolicyStatement.fromJson(statement));
     });
-
-    const yaml = require('js-yaml');
-    const rbacRoles = yaml.safeLoadAll(request('GET', `${albBaseResourceBaseUrl}rbac-role.yaml`).getBody())
-      .filter((rbac: any) => { return rbac['kind'] != 'ServiceAccount' });
-    const albDeployment = yaml.safeLoad(request('GET', `${albBaseResourceBaseUrl}alb-ingress-controller.yaml`).getBody());
-
-    const albResources = cluster.addManifest('aws-alb-ingress-controller', ...rbacRoles, albDeployment);
-    const albResourcePatch = new eks.KubernetesPatch(this, `alb-ingress-controller-patch-${albIngressControllerVersion}`, {
-      cluster,
-      resourceName: "deployment/alb-ingress-controller",
-      resourceNamespace: albNamespace,
-      applyPatch: {
-        spec: {
-          template: {
-            spec: {
-              containers: [
-                {
-                  name: 'alb-ingress-controller',
-                  args: [
-                    '--ingress-class=alb',
-                    '--feature-gates=wafv2=false',
-                    `--cluster-name=${cluster.clusterName}`,
-                    `--aws-vpc-id=${vpc.vpcId}`,
-                    `--aws-region=${stack.region}`,
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      },
-      restorePatch: {
-        spec: {
-          template: {
-            spec: {
-              containers: [
-                {
-                  name: 'alb-ingress-controller',
-                  args: [
-                    '--ingress-class=alb',
-                    '--feature-gates=wafv2=false',
-                    `--cluster-name=${cluster.clusterName}`,
-                  ]
-                }
-              ]
-            }
-          }
-        }
+    const awsLoadBalancerControllerChart = cluster.addHelmChart('AWSLoadBalancerController', {
+      chart: 'aws-load-balancer-controller',
+      repository: 'https://aws.github.io/eks-charts',
+      namespace: albNamespace,
+      release: 'aws-load-balancer-controller',
+      version: '1.0.8', // mapping to v2.0.1
+      wait: stack.region.startsWith('cn-') ? false : true,
+      timeout: stack.region.startsWith('cn-') ? undefined : cdk.Duration.minutes(15),
+      values: {
+        clusterName: cluster.clusterName,
+        image: {
+          repository: this.getAwsLoadBalancerControllerRepo(stack, awsLoadBalancerControllerVersion),
+        },
+        serviceAccount: {
+          create: false,
+          name: albServiceAccount.serviceAccountName,
+        },
+        // must disable waf features for aws-cn partition
+        enableShield: false,
+        enableWaf: false,
+        enableWafv2: false,
       },
     });
-    albResourcePatch.node.addDependency(albResources);
 
     // deploy EFS, EFS CSI driver, PV
     const efsCSI = cluster.addHelmChart('EFSCSIDriver', {
@@ -313,10 +288,10 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       externalDNSServiceAccount.addToPolicy(r53UpdateRecordPolicy!);
 
       const externalDNSResources = yaml.safeLoadAll(
-        request('GET', `${albBaseResourceBaseUrl}external-dns.yaml`)
+        request('GET', `${awsControllerBaseResourceBaseUrl}/examples/external-dns.yaml`)
           .getBody('utf-8').replace('external-dns-test.my-org.com', r53Domain)
-          .replace('0.7.1', '0.7.2') // pick external-dns 0.7.2 with Route53 fix in AWS China
-          .replace('my-identifier', hostedZone!.hostedZoneId))
+          .replace('0.7.1', '0.7.4') // pick external-dns 0.7.2+ with Route53 fix in AWS China
+          .replace('my-identifier', 'nexus3'))
         .filter((res: any) => { return res['kind'] != 'ServiceAccount' })
         .map((res: any) => {
           if (res['kind'] === 'ClusterRole') {
@@ -325,55 +300,31 @@ export class SonatypeNexus3Stack extends cdk.Stack {
               resources: ['endpoints'],
               verbs: ["get", "watch", "list"]
             });
-          } else if (res['kind'] === 'Deployment' && stack.region.startsWith('cn-')) {
-            res['spec']['template']['spec']['containers'][0]['env'] = [
-              {
-                name: 'AWS_REGION',
-                value: stack.region,
-              }
-            ];
+          } else if (res['kind'] === 'Deployment') {
+            if (stack.region.startsWith('cn-')) {
+              res['spec']['template']['spec']['containers'][0]['env'] = [
+                {
+                  name: 'AWS_REGION',
+                  value: stack.region,
+                }
+              ];
+            }
+            res['spec']['template']['spec']['securityContext'] = {
+              fsGroup: 65534,
+            };
           }
           return res;
         });
 
       const externalDNS = cluster.addManifest('external-dns', ...externalDNSResources);
       externalDNS.node.addDependency(externalDNSServiceAccount);
-
-      const externalDNSPatch = new eks.KubernetesPatch(this, `external-dns-patch-${albIngressControllerVersion}`, {
-        cluster,
-        resourceName: "deployment/external-dns",
-        resourceNamespace: externalDNSNamespace,
-        applyPatch: {
-          spec: {
-            template: {
-              spec: {
-                securityContext: {
-                  fsGroup: 65534,
-                }
-              }
-            }
-          }
-        },
-        restorePatch: {
-          spec: {
-            template: {
-              spec: {
-                securityContext: {
-                  fsGroup: 65534,
-                }
-              }
-            }
-          }
-        },
-      });
-      externalDNSPatch.node.addDependency(externalDNS);
-      externalDNSResource = externalDNSPatch;
+      externalDNSResource = externalDNS;
     }
 
     const enableAutoConfigured: boolean = this.node.tryGetContext('enableAutoConfigured') || false;
     const nexus3ChartName = 'nexus3';
     const nexus3ChartVersion = '2.1.0';
-    let nexus3ChartProperties: {[ key: string ] : any} = {
+    let nexus3ChartProperties: { [key: string]: any } = {
       statefulset: {
         enabled: true,
       },
@@ -454,7 +405,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       values: nexus3ChartProperties,
     });
     nexus3Chart.node.addDependency(nexusServiceAccount);
-    nexus3Chart.node.addDependency(albResourcePatch);
+    nexus3Chart.node.addDependency(awsLoadBalancerControllerChart);
     if (certificate) {
       nexus3Chart.node.addDependency(certificate);
       nexus3Chart.node.addDependency(externalDNSResource!);
@@ -547,6 +498,38 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       value: `${nexusBlobBucket.bucketName}`,
       description: 'S3 Bucket created for Nexus3 S3 Blobstore'
     });
+  }
+
+  /**
+   * The info is retrieved from https://github.com/kubernetes-sigs/aws-load-balancer-controller/releases
+   */
+  getAwsLoadBalancerControllerRepo(stack: cdk.Stack, awsLoadBalancerControllerVersion: string) {
+    let account;
+    let region = stack.region;
+    switch (stack.region) {
+      case 'cn-northwest-1':
+        account = '961992271922';
+        break;
+      case 'cn-north-1':
+        account = '918309763551';
+        break;
+      case 'me-south-1':
+        account = '558608220178';
+        break;
+      case 'eu-south-1':
+        account = '590381155156';
+        break;
+      case 'ap-east-1':
+        account = '800184023465';
+        break;
+      case 'af-south-1':
+        account = '877085696533';
+        break;
+      default:
+        account = '602401143452';
+        region = 'us-west-2';
+    }
+    return `${account}.dkr.ecr.${region}.${stack.urlSuffix}/amazon/aws-load-balancer-controller`;
   }
 
   private azOfSubnets(subnets: ec2.ISubnet[]): number {
