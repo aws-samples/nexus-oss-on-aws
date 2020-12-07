@@ -16,8 +16,11 @@ export class SonatypeNexus3Stack extends cdk.Stack {
   constructor(scope: cdk.Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    // deploy sonatype-nexus3 chart
-    const domainName = this.node.tryGetContext('domainName');
+    const domainNameParameter = new cdk.CfnParameter(this, 'domainName', {
+      type: 'String',
+      allowedPattern: '(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]',
+      description: 'The domain name of Nexus OSS deployment.'});
+    const domainName = domainNameParameter.valueAsString;
     if (!domainName)
       throw new Error('Must specify the custom domain name.');
 
@@ -32,7 +35,17 @@ export class SonatypeNexus3Stack extends cdk.Stack {
         privateZone: false,
       });
       assert.ok(hostedZone != null, 'Can not find your hosted zone.');
-      certificate = new certmgr.Certificate(this, `Certificate-${domainName}`, {
+      certificate = new certmgr.Certificate(this, `SSLCertificate`, {
+        domainName: domainName,
+        validation: certmgr.CertificateValidation.fromDns(hostedZone),
+      });
+    } else if (this.node.tryGetContext('enableR53HostedZone') === true) {
+      const r53HostedZoneIdParameter = new cdk.CfnParameter(this, 'r53HostedZoneId', {
+        type: 'String',
+        default: '(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]',
+        description: 'The hosted zone ID of given domain name.'});
+      hostedZone = route53.HostedZone.fromHostedZoneId(this, 'ImportedHostedZone', r53HostedZoneIdParameter.valueAsString);
+      certificate = new certmgr.Certificate(this, `SSLCertificate`, {
         domainName: domainName,
         validation: certmgr.CertificateValidation.fromDns(hostedZone),
       });
@@ -289,7 +302,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
 
       const externalDNSResources = yaml.safeLoadAll(
         request('GET', `${awsControllerBaseResourceBaseUrl}/examples/external-dns.yaml`)
-          .getBody('utf-8').replace('external-dns-test.my-org.com', r53Domain)
+          .getBody('utf-8').replace('external-dns-test.my-org.com', r53Domain ?? '')
           .replace('0.7.1', '0.7.4') // pick external-dns 0.7.2+ with Route53 fix in AWS China
           .replace('my-identifier', 'nexus3'))
         .filter((res: any) => { return res['kind'] != 'ServiceAccount' })
@@ -301,14 +314,12 @@ export class SonatypeNexus3Stack extends cdk.Stack {
               verbs: ["get", "watch", "list"]
             });
           } else if (res['kind'] === 'Deployment') {
-            if (stack.region.startsWith('cn-')) {
-              res['spec']['template']['spec']['containers'][0]['env'] = [
-                {
-                  name: 'AWS_REGION',
-                  value: stack.region,
-                }
-              ];
-            }
+            res['spec']['template']['spec']['containers'][0]['env'] = [
+              {
+                name: 'AWS_REGION',
+                value: stack.region,
+              }
+            ];
             res['spec']['template']['spec']['securityContext'] = {
               fsGroup: 65534,
             };

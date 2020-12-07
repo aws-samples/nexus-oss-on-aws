@@ -22,14 +22,24 @@ Deploy Sonatype Nexus3 via Helm on EKS.
 npm run init
 ```
 
-### Deploy to EKS with managed EC2 nodes
+### Deployment
+#### Deploy to EKS with managed EC2 nodes
 ```
-npm run deploy -- -c domainName=<the hostname of nexus3 deployment>
+npm run deploy -- --parameters domainName=<the hostname of nexus3 deployment>
 ```
 
-### Deploy with Route53 managed domain name
+#### Deploy with Route53 managed domain name
 ```
-npm run deploy -- -c domainName=<nexus.mydomain.com> -c r53Domain=<mydomain.com>
+npm run deploy -- --parameters domainName=<nexus.mydomain.com> -c r53Domain=<mydomain.com>
+```
+or
+```
+npm run deploy -- --parameters domainName=<nexus.mydomain.com> --parameters r53HostedZoneId=<id of route53 hosted zone> -c enableR53HostedZone=true
+```
+
+#### Deploy to a new created VPC
+```
+npm run deploy -- -c createNewVpc=true
 ```
 
 ### Default login
