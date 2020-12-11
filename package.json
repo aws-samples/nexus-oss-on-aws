@@ -9,7 +9,8 @@
     "watch": "tsc -w",
     "test": "jest",
     "cdk": "cdk",
-    "init": "npm i && npx cdk bootstrap",
+    "init": "npm run init-deps && npx cdk bootstrap",
+    "init-deps": "npm i",
     "deploy": "npx cdk deploy",
     "cleanup": "npx cdk destroy -c createNewVpc=true",
     "release": "npm run build && npm run test"
