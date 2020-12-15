@@ -16,15 +16,30 @@ export class SonatypeNexus3Stack extends cdk.Stack {
   constructor(scope: cdk.Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
+    const partitionMapping = new cdk.CfnMapping(this, 'PartitionMapping', {
+      mapping: {
+        aws: {
+          nexus: 'quay.io/travelaudience/docker-nexus',
+          nexusProxy: 'quay.io/travelaudience/docker-nexus-proxy',
+          // see https://github.com/aws/aws-cdk/blob/60c782fe173449ebf912f509de7db6df89985915/packages/%40aws-cdk/aws-eks/lib/kubectl-layer.ts
+          kubectlLayerAppid: 'arn:aws:serverlessrepo:us-east-1:903779448426:applications/lambda-layer-kubectl',
+        },
+        'aws-cn': {
+          nexus: '048912060910.dkr.ecr.cn-northwest-1.amazonaws.com.cn/quay/travelaudience/docker-nexus',
+          nexusProxy: '048912060910.dkr.ecr.cn-northwest-1.amazonaws.com.cn/quay/travelaudience/docker-nexus-proxy',
+          kubectlLayerAppid: 'arn:aws-cn:serverlessrepo:cn-north-1:487369736442:applications/lambda-layer-kubectl',
+        },
+      }
+    });
+
     const domainNameParameter = new cdk.CfnParameter(this, 'domainName', {
       type: 'String',
       allowedPattern: '(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]',
-      description: 'The domain name of Nexus OSS deployment.'});
+      description: 'The domain name of Nexus OSS deployment.'
+    });
     const domainName = domainNameParameter.valueAsString;
     if (!domainName)
       throw new Error('Must specify the custom domain name.');
-
-    const stack = cdk.Stack.of(this);
 
     var hostedZone = null;
     var certificate: certmgr.Certificate | undefined;
@@ -39,11 +54,12 @@ export class SonatypeNexus3Stack extends cdk.Stack {
         domainName: domainName,
         validation: certmgr.CertificateValidation.fromDns(hostedZone),
       });
-    } else if (this.node.tryGetContext('enableR53HostedZone') === true) {
+    } else if ((/true/i).test(this.node.tryGetContext('enableR53HostedZone'))) {
       const r53HostedZoneIdParameter = new cdk.CfnParameter(this, 'r53HostedZoneId', {
         type: 'String',
         default: '(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]',
-        description: 'The hosted zone ID of given domain name.'});
+        description: 'The hosted zone ID of given domain name.'
+      });
       hostedZone = route53.HostedZone.fromHostedZoneId(this, 'ImportedHostedZone', r53HostedZoneIdParameter.valueAsString);
       certificate = new certmgr.Certificate(this, `SSLCertificate`, {
         domainName: domainName,
@@ -72,6 +88,9 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       assumedBy: new iam.AccountRootPrincipal()
     });
 
+    const kubectlLayer = new eks.KubectlLayer(this, 'KubeLayer', {
+      applicationId: partitionMapping.findInMap(cdk.Aws.PARTITION, 'kubectlLayerAppid'),
+    });
     const isFargetEnabled = (this.node.tryGetContext('enableFarget') || 'false').toLowerCase() === 'true';
     const cluster = new eks.Cluster(this, 'MyK8SCluster', {
       vpc,
@@ -80,6 +99,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       mastersRole: clusterAdmin,
       version: eks.KubernetesVersion.V1_16,
       coreDnsComputeType: isFargetEnabled ? eks.CoreDnsComputeType.FARGATE : eks.CoreDnsComputeType.EC2,
+      kubectlLayer,
     });
 
     const nexusBlobBucket = new s3.Bucket(this, `nexus3-blobstore`, {
@@ -155,7 +175,8 @@ export class SonatypeNexus3Stack extends cdk.Stack {
     // install AWS load balancer via Helm charts
     const awsLoadBalancerControllerVersion = 'v2.0.1';
     const awsControllerBaseResourceBaseUrl = `https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/${awsLoadBalancerControllerVersion}/docs`;
-    const awsControllerPolicyUrl = `${awsControllerBaseResourceBaseUrl}/install/iam_policy${stack.region.startsWith('cn-') ? '_cn' : ''}.json`;
+    const targetRegion = this.node.tryGetContext('region') ?? 'us-east-1';
+    const awsControllerPolicyUrl = `${awsControllerBaseResourceBaseUrl}/install/iam_policy${targetRegion.startsWith('cn-') ? '_cn' : ''}.json`;
     const albNamespace = 'kube-system';
     const albServiceAccount = cluster.addServiceAccount('aws-load-balancer-controller', {
       name: 'aws-load-balancer-controller',
@@ -175,12 +196,12 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       namespace: albNamespace,
       release: 'aws-load-balancer-controller',
       version: '1.0.8', // mapping to v2.0.1
-      wait: stack.region.startsWith('cn-') ? false : true,
-      timeout: stack.region.startsWith('cn-') ? undefined : cdk.Duration.minutes(15),
+      wait: true,
+      timeout: cdk.Duration.minutes(15),
       values: {
         clusterName: cluster.clusterName,
         image: {
-          repository: this.getAwsLoadBalancerControllerRepo(stack, awsLoadBalancerControllerVersion),
+          repository: this.getAwsLoadBalancerControllerRepo(),
         },
         serviceAccount: {
           create: false,
@@ -317,7 +338,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
             res['spec']['template']['spec']['containers'][0]['env'] = [
               {
                 name: 'AWS_REGION',
-                value: stack.region,
+                value: cdk.Aws.REGION,
               }
             ];
             res['spec']['template']['spec']['securityContext'] = {
@@ -341,6 +362,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       },
       nexus: {
         imageTag: '3.23.0',
+        imageName: partitionMapping.findInMap(cdk.Aws.PARTITION, 'nexus'),
         resources: {
           requests: {
             cpu: '256m',
@@ -356,6 +378,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       },
       nexusProxy: {
         enabled: true,
+        imageName: partitionMapping.findInMap(cdk.Aws.PARTITION, 'nexusProxy'),
         port: nexusPort,
         env: {
           nexusHttpHost: domainName
@@ -382,7 +405,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       },
       serviceAccount: {
         create: false,
-      }
+      },
     };
     if (enableAutoConfigured) {
       // enalbe script feature of nexus3
@@ -411,8 +434,8 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       namespace: nexus3Namespace,
       release: nexus3ChartName,
       version: nexus3ChartVersion,
-      wait: stack.region.startsWith('cn-') ? false : true,
-      timeout: stack.region.startsWith('cn-') ? undefined : cdk.Duration.minutes(15),
+      wait: true,
+      timeout: cdk.Duration.minutes(15),
       values: nexus3ChartProperties,
     });
     nexus3Chart.node.addDependency(nexusServiceAccount);
@@ -476,10 +499,20 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       });
       nexus3IngressPatch.node.addDependency(nexus3Chart);
     }
+    const albAddress = new eks.KubernetesObjectValue(this, 'Nexus3ALBAddress', {
+      cluster,
+      objectType: 'ingress',
+      objectNamespace: nexus3Namespace,
+      objectName: `${nexus3ChartName}-sonatype-nexus`,
+      jsonPath: '.status.loadBalancer.ingress[0].hostname',
+    });
+    albAddress.node.addDependency(nexus3Chart);
     if (enableAutoConfigured) {
       let nexusEndpointHostname: string | undefined;
       if (domainName)
         nexusEndpointHostname = `https://${domainName}`;
+      else
+        nexusEndpointHostname = `http://${albAddress.value}`;
       if (nexusEndpointHostname) {
         const autoConfigureFunc = new lambda_python.PythonFunction(this, 'Neuxs3AutoCofingure', {
           entry: path.join(__dirname, '../lambda.d/nexuspreconfigure'),
@@ -493,7 +526,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
 
         const nexus3AutoConfigureCR = new cdk.CustomResource(this, 'CustomResource', {
           serviceToken: autoConfigureFunc.functionArn,
-          resourceType: 'Custom::Nexus3AutoConfigure',
+          resourceType: 'Custom::Nexus3-AutoConfigure',
           properties: {
             Username: 'admin',
             Password: 'admin123',
@@ -514,33 +547,78 @@ export class SonatypeNexus3Stack extends cdk.Stack {
   /**
    * The info is retrieved from https://github.com/kubernetes-sigs/aws-load-balancer-controller/releases
    */
-  getAwsLoadBalancerControllerRepo(stack: cdk.Stack, awsLoadBalancerControllerVersion: string) {
-    let account;
-    let region = stack.region;
-    switch (stack.region) {
-      case 'cn-northwest-1':
-        account = '961992271922';
-        break;
-      case 'cn-north-1':
-        account = '918309763551';
-        break;
-      case 'me-south-1':
-        account = '558608220178';
-        break;
-      case 'eu-south-1':
-        account = '590381155156';
-        break;
-      case 'ap-east-1':
-        account = '800184023465';
-        break;
-      case 'af-south-1':
-        account = '877085696533';
-        break;
-      default:
-        account = '602401143452';
-        region = 'us-west-2';
-    }
-    return `${account}.dkr.ecr.${region}.${stack.urlSuffix}/amazon/aws-load-balancer-controller`;
+  getAwsLoadBalancerControllerRepo() {
+    const albImageMapping = new cdk.CfnMapping(this, 'ALBImageMapping', {
+      mapping: {
+        'me-south-1': {
+          2: '558608220178',
+        },
+        'eu-south-1': {
+          2: '590381155156',
+        },
+        'ap-northeast-1': {
+          2: '602401143452',
+        },
+        'ap-northeast-2': {
+          2: '602401143452',
+        },
+        'ap-south-1': {
+          2: '602401143452',
+        },
+        'ap-southeast-1': {
+          2: '602401143452',
+        },
+        'ap-southeast-2': {
+          2: '602401143452',
+        },
+        'ca-central-1': {
+          2: '602401143452',
+        },
+        'eu-central-1': {
+          2: '602401143452',
+        },
+        'eu-north-1': {
+          2: '602401143452',
+        },
+        'eu-west-1': {
+          2: '602401143452',
+        },
+        'eu-west-2': {
+          2: '602401143452',
+        },
+        'eu-west-3': {
+          2: '602401143452',
+        },
+        'sa-east-1': {
+          2: '602401143452',
+        },
+        'us-east-1': {
+          2: '602401143452',
+        },
+        'us-east-2': {
+          2: '602401143452',
+        },
+        'us-west-1': {
+          2: '602401143452',
+        },
+        'us-west-2': {
+          2: '602401143452',
+        },
+        'ap-east-1': {
+          2: '800184023465',
+        },
+        'af-south-1': {
+          2: '877085696533',
+        },
+        'cn-north-1': {
+          2: '918309763551',
+        },
+        'cn-northwest-1': {
+          2: '961992271922',
+        },
+      }
+    }); 
+    return `${albImageMapping.findInMap(cdk.Aws.REGION, '2')}.dkr.ecr.${cdk.Aws.REGION}.${cdk.Aws.URL_SUFFIX}/amazon/aws-load-balancer-controller`;
   }
 
   private azOfSubnets(subnets: ec2.ISubnet[]): number {

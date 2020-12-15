@@ -42,6 +42,12 @@ npm run deploy -- --parameters domainName=<nexus.mydomain.com> --parameters r53H
 npm run deploy -- -c createNewVpc=true
 ```
 
+#### Deploy to China regions
+Due to AWS load balancer has different policy requirement for partitions, you need speicfy the target region info via context `region` to pick the corresponding IAM policies.
+```
+npm run deploy -- -c region=cn-north-1
+```
+
 ### Default login
 Check [installation guide of Helm chart sonatype-nexus](https://github.com/Oteemo/charts/tree/master/charts/sonatype-nexus#installing-the-chart)
 

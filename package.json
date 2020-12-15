@@ -11,7 +11,7 @@
     "cdk": "cdk",
     "init": "npm i && npx cdk bootstrap",
     "deploy": "npx cdk deploy",
-    "cleanup": "npx cdk destroy",
+    "cleanup": "npx cdk destroy -c createNewVpc=true",
     "release": "npm run build && npm run test"
   },
   "devDependencies": {
