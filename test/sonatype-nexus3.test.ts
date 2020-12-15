@@ -11,6 +11,11 @@ describe('Nexus OSS stack', () => {
   const vpcId = 'vpc-123456';
   let previous: (scope: cdk.Construct, options: cdk.GetContextValueOptions) => cdk.GetContextValueResult;
 
+  const defaultContext = {
+    createNewVpc: true,
+    enableR53HostedZone: true,
+  };
+
   beforeAll(() => {
     previous = mock.mockContextProviderWith({
       vpcId,
@@ -76,10 +81,6 @@ describe('Nexus OSS stack', () => {
     mock.restoreContextProvider(previous);
   });
 
-  const defaultContext = {
-    enableR53HostedZone: true,
-  };
-
   beforeEach(() => {
     ({ app, stack } = initializeStackWithContextsAndEnvs(app, stack, defaultContext));
   });
@@ -93,11 +94,39 @@ describe('Nexus OSS stack', () => {
         "Fn::Join": [
           "",
           [
-            "{\"statefulset\":{\"enabled\":true},\"nexus\":{\"imageTag\":\"3.23.0\",\"resources\":{\"requests\":{\"cpu\":\"256m\",\"memory\":\"4800Mi\"}},\"livenessProbe\":{\"path\":\"/\"},\"nodeSelector\":{\"usage\":\"nexus3\"}},\"nexusProxy\":{\"enabled\":true,\"port\":8081,\"env\":{\"nexusHttpHost\":\"",
+            "{\"statefulset\":{\"enabled\":true},\"nexus\":{\"imageTag\":\"3.23.0\",\"imageName\":\"",
+            {
+              "Fn::FindInMap": [
+                "PartitionMapping",
+                {
+                  "Ref": "AWS::Partition"
+                },
+                "nexus"
+              ]
+            },
+            "\",\"resources\":{\"requests\":{\"cpu\":\"256m\",\"memory\":\"4800Mi\"}},\"livenessProbe\":{\"path\":\"/\"},\"nodeSelector\":{\"usage\":\"nexus3\"}},\"nexusProxy\":{\"enabled\":true,\"imageName\":\"",
+            {
+              "Fn::FindInMap": [
+                "PartitionMapping",
+                {
+                  "Ref": "AWS::Partition"
+                },
+                "nexusProxy"
+              ]
+            },
+            "\",\"port\":8081,\"env\":{\"nexusHttpHost\":\"",
             {
               "Ref": "domainName"
             },
-            "\"}},\"persistence\":{\"enabled\":true,\"storageClass\":\"efs-sc\",\"accessMode\":\"ReadWriteMany\"},\"nexusBackup\":{\"enabled\":false,\"persistence\":{\"enabled\":false}},\"ingress\":{\"enabled\":true,\"path\":\"/*\",\"annotations\":{\"alb.ingress.kubernetes.io/backend-protocol\":\"HTTP\",\"alb.ingress.kubernetes.io/healthcheck-path\":\"/\",\"alb.ingress.kubernetes.io/healthcheck-port\":8081,\"alb.ingress.kubernetes.io/listen-ports\":\"[{\\\"HTTP\\\": 80}, {\\\"HTTPS\\\": 443}]\",\"alb.ingress.kubernetes.io/scheme\":\"internet-facing\",\"alb.ingress.kubernetes.io/inbound-cidrs\":\"0.0.0.0/0\",\"alb.ingress.kubernetes.io/auth-type\":\"none\",\"alb.ingress.kubernetes.io/target-type\":\"ip\",\"kubernetes.io/ingress.class\":\"alb\",\"alb.ingress.kubernetes.io/tags\":\"app=nexus3\",\"alb.ingress.kubernetes.io/subnets\":\"subnet-000f2b20b0ebaef37,subnet-0b2cce92f08506a9a,subnet-0571b340c9f28375c\",\"alb.ingress.kubernetes.io/certificate-arn\":\"",
+            "\"}},\"persistence\":{\"enabled\":true,\"storageClass\":\"efs-sc\",\"accessMode\":\"ReadWriteMany\"},\"nexusBackup\":{\"enabled\":false,\"persistence\":{\"enabled\":false}},\"ingress\":{\"enabled\":true,\"path\":\"/*\",\"annotations\":{\"alb.ingress.kubernetes.io/backend-protocol\":\"HTTP\",\"alb.ingress.kubernetes.io/healthcheck-path\":\"/\",\"alb.ingress.kubernetes.io/healthcheck-port\":8081,\"alb.ingress.kubernetes.io/listen-ports\":\"[{\\\"HTTP\\\": 80}, {\\\"HTTPS\\\": 443}]\",\"alb.ingress.kubernetes.io/scheme\":\"internet-facing\",\"alb.ingress.kubernetes.io/inbound-cidrs\":\"0.0.0.0/0\",\"alb.ingress.kubernetes.io/auth-type\":\"none\",\"alb.ingress.kubernetes.io/target-type\":\"ip\",\"kubernetes.io/ingress.class\":\"alb\",\"alb.ingress.kubernetes.io/tags\":\"app=nexus3\",\"alb.ingress.kubernetes.io/subnets\":\"",
+            {
+              "Ref": "NexusVpcPublicSubnet1SubnetE9292C67"
+            },
+            ",",
+            {
+              "Ref": "NexusVpcPublicSubnet2Subnet4D9CEF81"
+            },
+            "\",\"alb.ingress.kubernetes.io/certificate-arn\":\"",
             {
               "Ref": "SSLCertificate2E93C565"
             },
@@ -110,11 +139,14 @@ describe('Nexus OSS stack', () => {
       "Version": "2.1.0",
       "Namespace": "default",
       "Repository": "https://oteemo.github.io/charts/",
+      "Wait": true,
+      "Timeout": "900s",
     });
   });
 
   test('ssl certificate with R53 hosted zone when disabling R53 hosted zone', () => {
     const context = {
+      enableR53HostedZone: false,
     };
     ({ app, stack } = initializeStackWithContextsAndEnvs(app, stack, context));
 
@@ -141,13 +173,9 @@ describe('Nexus OSS stack', () => {
   });
 
   test('Create Nexus Stack with new vpc and custom instanceType', () => {
-    // not mocking vpc provider when creating a new vpc 
-    mock.restoreContextProvider(previous);
-    
     const context = {
       ...defaultContext,
       instanceType: 'm5.xlarge',
-      createNewVpc: true, 
     };
     ({ app, stack } = initializeStackWithContextsAndEnvs(app, stack, context));
 
@@ -163,32 +191,53 @@ describe('Nexus OSS stack', () => {
     const context = {
       ...defaultContext,
       enableAutoConfigured: true, 
+      createNewVpc: false,
     };
-    ({ app, stack } = initializeStackWithContextsAndEnvs(app, stack, context));
+    ({ app, stack } = initializeStackWithContextsAndEnvs(app, stack, context, {
+      account: '123456789012',
+      region: 'cn-north-1',
+    }));
 
     expect(stack).toHaveResourceLike('Custom::AWSCDK-EKS-HelmChart', {
       "Values": {
         "Fn::Join": [
           "",
           [
-            "{\"statefulset\":{\"enabled\":true},\"nexus\":{\"imageTag\":\"3.23.0\",\"resources\":{\"requests\":{\"cpu\":\"256m\",\"memory\":\"4800Mi\"}},\"livenessProbe\":{\"path\":\"/\"},\"nodeSelector\":{\"usage\":\"nexus3\"}},\"nexusProxy\":{\"enabled\":true,\"port\":8081,\"env\":{\"nexusHttpHost\":\"",
+            "{\"statefulset\":{\"enabled\":true},\"nexus\":{\"imageTag\":\"3.23.0\",\"imageName\":\"",
+            {
+              "Fn::FindInMap": [
+                "PartitionMapping",
+                {
+                  "Ref": "AWS::Partition"
+                },
+                "nexus"
+              ]
+            },
+            "\",\"resources\":{\"requests\":{\"cpu\":\"256m\",\"memory\":\"4800Mi\"}},\"livenessProbe\":{\"path\":\"/\"},\"nodeSelector\":{\"usage\":\"nexus3\"}},\"nexusProxy\":{\"enabled\":true,\"imageName\":\"",
+            {
+              "Fn::FindInMap": [
+                "PartitionMapping",
+                {
+                  "Ref": "AWS::Partition"
+                },
+                "nexusProxy"
+              ]
+            },
+            "\",\"port\":8081,\"env\":{\"nexusHttpHost\":\"",
             {
               "Ref": "domainName"
             },
-            "\"}},\"persistence\":{\"enabled\":true,\"storageClass\":\"efs-sc\",\"accessMode\":\"ReadWriteMany\"},\"nexusBackup\":{\"enabled\":false,\"persistence\":{\"enabled\":false}},\"ingress\":{\"enabled\":true,\"path\":\"/*\",\"annotations\":{\"alb.ingress.kubernetes.io/backend-protocol\":\"HTTP\",\"alb.ingress.kubernetes.io/healthcheck-path\":\"/\",\"alb.ingress.kubernetes.io/healthcheck-port\":8081,\"alb.ingress.kubernetes.io/listen-ports\":\"[{\\\"HTTP\\\": 80}, {\\\"HTTPS\\\": 443}]\",\"alb.ingress.kubernetes.io/scheme\":\"internet-facing\",\"alb.ingress.kubernetes.io/inbound-cidrs\":\"0.0.0.0/0\",\"alb.ingress.kubernetes.io/auth-type\":\"none\",\"alb.ingress.kubernetes.io/target-type\":\"ip\",\"kubernetes.io/ingress.class\":\"alb\",\"alb.ingress.kubernetes.io/tags\":\"app=nexus3\",\"alb.ingress.kubernetes.io/subnets\":\"s-12345,s-67890\",\"alb.ingress.kubernetes.io/certificate-arn\":\"",
+            "\"}},\"persistence\":{\"enabled\":true,\"storageClass\":\"efs-sc\",\"accessMode\":\"ReadWriteMany\"},\"nexusBackup\":{\"enabled\":false,\"persistence\":{\"enabled\":false}},\"ingress\":{\"enabled\":true,\"path\":\"/*\",\"annotations\":{\"alb.ingress.kubernetes.io/backend-protocol\":\"HTTP\",\"alb.ingress.kubernetes.io/healthcheck-path\":\"/\",\"alb.ingress.kubernetes.io/healthcheck-port\":8081,\"alb.ingress.kubernetes.io/listen-ports\":\"[{\\\"HTTP\\\": 80}, {\\\"HTTPS\\\": 443}]\",\"alb.ingress.kubernetes.io/scheme\":\"internet-facing\",\"alb.ingress.kubernetes.io/inbound-cidrs\":\"0.0.0.0/0\",\"alb.ingress.kubernetes.io/auth-type\":\"none\",\"alb.ingress.kubernetes.io/target-type\":\"ip\",\"kubernetes.io/ingress.class\":\"alb\",\"alb.ingress.kubernetes.io/tags\":\"app=nexus3\",\"alb.ingress.kubernetes.io/subnets\":\"subnet-000f2b20b0ebaef37,subnet-0b2cce92f08506a9a,subnet-0571b340c9f28375c\",\"alb.ingress.kubernetes.io/certificate-arn\":\"",
             {
               "Ref": "SSLCertificate2E93C565"
             },
             "\",\"alb.ingress.kubernetes.io/ssl-policy\":\"ELBSecurityPolicy-TLS-1-2-Ext-2018-06\",\"alb.ingress.kubernetes.io/actions.ssl-redirect\":\"{\\\"Type\\\": \\\"redirect\\\", \\\"RedirectConfig\\\": { \\\"Protocol\\\": \\\"HTTPS\\\", \\\"Port\\\": \\\"443\\\", \\\"StatusCode\\\": \\\"HTTP_301\\\"}}\"},\"tls\":{\"enabled\":false}},\"serviceAccount\":{\"create\":false},\"config\":{\"enabled\":true,\"data\":{\"nexus.properties\":\"nexus.scripts.allowCreation=true\"}},\"deployment\":{\"additionalVolumeMounts\":[{\"mountPath\":\"/nexus-data/etc/nexus.properties\",\"subPath\":\"nexus.properties\",\"name\":\"sonatype-nexus-conf\"}]}}"
           ]
         ]
-      },
-      "Namespace": "default",
-      "Repository": "https://oteemo.github.io/charts/",
-      "CreateNamespace": true
+      }
     });
   
-    expect(stack).toHaveResource('Custom::Nexus3AutoConfigure', {
+    expect(stack).toHaveResource('Custom::Nexus3-AutoConfigure', {
       "Properties": {
         "ServiceToken": {
           "Fn::GetAtt": [
@@ -220,6 +269,14 @@ describe('Nexus OSS stack', () => {
   });
 
   test('AWS load baalancer controller helm chart is created', () => {
+    const context = {
+      ...defaultContext,
+      createNewVpc: false,
+    };
+    ({ app, stack } = initializeStackWithContextsAndEnvs(app, stack, context, {
+      account: '123456789012',
+      region: 'cn-north-1',
+    }));
     expect(stack).toHaveResourceLike('Custom::AWSCDK-EKS-HelmChart', {
       "Release": "aws-load-balancer-controller",
       "Chart": "aws-load-balancer-controller",
@@ -231,12 +288,26 @@ describe('Nexus OSS stack', () => {
   test('External dns resource is created when r53Domain is specified.', () => {
     const context = {
       ...defaultContext,
-      region: 'cn-north-1',
+      createNewVpc: false,
     };
-    ({ app, stack } = initializeStackWithContextsAndEnvs(app, stack, context));
+    ({ app, stack } = initializeStackWithContextsAndEnvs(app, stack, context, {
+      account: '123456789012',
+      region: 'cn-north-1',
+    }));
 
     expect(stack).toHaveResourceLike('Custom::AWSCDK-EKS-KubernetesResource', {
-      "Manifest": "[{\"apiVersion\":\"rbac.authorization.k8s.io/v1beta1\",\"kind\":\"ClusterRole\",\"metadata\":{\"name\":\"external-dns\"},\"rules\":[{\"apiGroups\":[\"\"],\"resources\":[\"services\"],\"verbs\":[\"get\",\"watch\",\"list\"]},{\"apiGroups\":[\"\"],\"resources\":[\"pods\"],\"verbs\":[\"get\",\"watch\",\"list\"]},{\"apiGroups\":[\"extensions\"],\"resources\":[\"ingresses\"],\"verbs\":[\"get\",\"watch\",\"list\"]},{\"apiGroups\":[\"\"],\"resources\":[\"nodes\"],\"verbs\":[\"list\"]},{\"apiGroups\":[\"\"],\"resources\":[\"endpoints\"],\"verbs\":[\"get\",\"watch\",\"list\"]}]},{\"apiVersion\":\"rbac.authorization.k8s.io/v1beta1\",\"kind\":\"ClusterRoleBinding\",\"metadata\":{\"name\":\"external-dns-viewer\"},\"roleRef\":{\"apiGroup\":\"rbac.authorization.k8s.io\",\"kind\":\"ClusterRole\",\"name\":\"external-dns\"},\"subjects\":[{\"kind\":\"ServiceAccount\",\"name\":\"external-dns\",\"namespace\":\"default\"}]},{\"apiVersion\":\"apps/v1\",\"kind\":\"Deployment\",\"metadata\":{\"name\":\"external-dns\"},\"spec\":{\"selector\":{\"matchLabels\":{\"app\":\"external-dns\"}},\"strategy\":{\"type\":\"Recreate\"},\"template\":{\"metadata\":{\"labels\":{\"app\":\"external-dns\"}},\"spec\":{\"serviceAccountName\":\"external-dns\",\"containers\":[{\"name\":\"external-dns\",\"image\":\"bitnami/external-dns:0.7.4\",\"args\":[\"--source=service\",\"--source=ingress\",\"--domain-filter=\",\"--provider=aws\",\"--policy=upsert-only\",\"--aws-zone-type=public\",\"--registry=txt\",\"--txt-owner-id=nexus3\"],\"env\":[{\"name\":\"AWS_REGION\",\"value\":\"cn-north-1\"}]}],\"securityContext\":{\"fsGroup\":65534}}}}}]",
+      "Manifest": {
+        "Fn::Join": [
+          "",
+          [
+            "[{\"apiVersion\":\"rbac.authorization.k8s.io/v1beta1\",\"kind\":\"ClusterRole\",\"metadata\":{\"name\":\"external-dns\"},\"rules\":[{\"apiGroups\":[\"\"],\"resources\":[\"services\"],\"verbs\":[\"get\",\"watch\",\"list\"]},{\"apiGroups\":[\"\"],\"resources\":[\"pods\"],\"verbs\":[\"get\",\"watch\",\"list\"]},{\"apiGroups\":[\"extensions\"],\"resources\":[\"ingresses\"],\"verbs\":[\"get\",\"watch\",\"list\"]},{\"apiGroups\":[\"\"],\"resources\":[\"nodes\"],\"verbs\":[\"list\"]},{\"apiGroups\":[\"\"],\"resources\":[\"endpoints\"],\"verbs\":[\"get\",\"watch\",\"list\"]}]},{\"apiVersion\":\"rbac.authorization.k8s.io/v1beta1\",\"kind\":\"ClusterRoleBinding\",\"metadata\":{\"name\":\"external-dns-viewer\"},\"roleRef\":{\"apiGroup\":\"rbac.authorization.k8s.io\",\"kind\":\"ClusterRole\",\"name\":\"external-dns\"},\"subjects\":[{\"kind\":\"ServiceAccount\",\"name\":\"external-dns\",\"namespace\":\"default\"}]},{\"apiVersion\":\"apps/v1\",\"kind\":\"Deployment\",\"metadata\":{\"name\":\"external-dns\"},\"spec\":{\"selector\":{\"matchLabels\":{\"app\":\"external-dns\"}},\"strategy\":{\"type\":\"Recreate\"},\"template\":{\"metadata\":{\"labels\":{\"app\":\"external-dns\"}},\"spec\":{\"serviceAccountName\":\"external-dns\",\"containers\":[{\"name\":\"external-dns\",\"image\":\"bitnami/external-dns:0.7.4\",\"args\":[\"--source=service\",\"--source=ingress\",\"--domain-filter=\",\"--provider=aws\",\"--policy=upsert-only\",\"--aws-zone-type=public\",\"--registry=txt\",\"--txt-owner-id=nexus3\"],\"env\":[{\"name\":\"AWS_REGION\",\"value\":\"",
+            {
+              "Ref": "AWS::Region"
+            },
+            "\"}]}],\"securityContext\":{\"fsGroup\":65534}}}}}]"
+          ]
+        ]
+      },
     });
   });
 });
@@ -248,10 +319,7 @@ function initializeStackWithContextsAndEnvs(app: cdk.App, stack: cdk.Stack,
   });
 
   stack = new SonatypeNexus3.SonatypeNexus3Stack(app, 'NexusStack', {
-    env: env ?? {
-      region: 'cn-north-1',
-      account: '1234567890xx',
-    },
+    env: env,
   });
   return { app, stack };
 }
