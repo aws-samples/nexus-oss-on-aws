@@ -21,7 +21,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
         aws: {
           nexus: 'quay.io/travelaudience/docker-nexus',
           nexusProxy: 'quay.io/travelaudience/docker-nexus-proxy',
-          // see https://github.com/aws/aws-cdk/blob/60c782fe173449ebf912f509de7db6df89985915/packages/%40aws-cdk/aws-eks/lib/kubectl-layer.ts
+          // see https://github.com/aws/aws-cdk/blob/60c782fe173449ebf912f509de7db6df89985915/packages/%40aws-cdk/aws-eks/lib/kubectl-layer.ts#L6
           kubectlLayerAppid: 'arn:aws:serverlessrepo:us-east-1:903779448426:applications/lambda-layer-kubectl',
         },
         'aws-cn': {
@@ -67,16 +67,15 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       });
     }
     let vpc!: ec2.IVpc;
-    let createNewVpc: boolean = this.node.tryGetContext('createNewVpc') ?? false
+    const createNewVpc: boolean = this.node.tryGetContext('createNewVpc') ?? false;
     if (createNewVpc) {
       vpc = new ec2.Vpc(this, 'NexusVpc', {
         maxAzs: 2,
-        natGateways: 1,
-      })
+      });
     }
     else {
       vpc = ec2.Vpc.fromLookup(this, 'vpc', {
-        isDefault: true
+        isDefault: true,
       });
       if (this.azOfSubnets(vpc.publicSubnets) <= 1 ||
         this.azOfSubnets(vpc.privateSubnets) <= 1) {
@@ -85,7 +84,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
     }
 
     const clusterAdmin = new iam.Role(this, 'AdminRole', {
-      assumedBy: new iam.AccountRootPrincipal()
+      assumedBy: new iam.AccountRootPrincipal(),
     });
 
     const kubectlLayer = new eks.KubectlLayer(this, 'KubeLayer', {
@@ -159,7 +158,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       });
     }
 
-    cluster.addNodegroupCapacity('nodegroup', {
+    const nodeGroup = cluster.addNodegroupCapacity('nodegroup', {
       nodegroupName: 'nexus3',
       instanceType: new ec2.InstanceType(this.node.tryGetContext('instanceType') ?? 'm5.large'),
       minSize: 1,
@@ -213,12 +212,19 @@ export class SonatypeNexus3Stack extends cdk.Stack {
         enableWafv2: false,
       },
     });
+    awsLoadBalancerControllerChart.node.addDependency(nodeGroup);
+    awsLoadBalancerControllerChart.node.addDependency(albServiceAccount);
+    awsLoadBalancerControllerChart.node.addDependency(cluster.openIdConnectProvider);
+    awsLoadBalancerControllerChart.node.addDependency(cluster.awsAuth);
 
     // deploy EFS, EFS CSI driver, PV
     const efsCSI = cluster.addHelmChart('EFSCSIDriver', {
       chart: 'https://github.com/kubernetes-sigs/aws-efs-csi-driver/releases/download/v0.3.0/helm-chart.tgz',
+      release: 'efs-csi-driver',
     });
-
+    efsCSI.node.addDependency(nodeGroup);
+    efsCSI.node.addDependency(cluster.openIdConnectProvider);
+    efsCSI.node.addDependency(cluster.awsAuth);
     const fileSystem = new efs.FileSystem(this, 'Nexus3FileSystem', {
       vpc,
       encrypted: false,
@@ -228,8 +234,10 @@ export class SonatypeNexus3Stack extends cdk.Stack {
     });
     fileSystem.connections.allowDefaultPortFrom(ec2.Peer.ipv4(vpc.vpcCidrBlock),
       'allow access efs from inside vpc');
+    fileSystem.connections.securityGroups.forEach(sg =>
+      (sg.node.defaultChild as ec2.CfnSecurityGroup).applyRemovalPolicy(cdk.RemovalPolicy.DESTROY));
     const efsClass = 'efs-sc';
-    cluster.addManifest('efs-storageclass',
+    const efsStorageClass = cluster.addManifest('efs-storageclass',
       {
         kind: 'StorageClass',
         apiVersion: 'storage.k8s.io/v1',
@@ -238,11 +246,13 @@ export class SonatypeNexus3Stack extends cdk.Stack {
         },
         provisioner: 'efs.csi.aws.com'
       });
+    efsStorageClass.node.addDependency(efsCSI);
+    const efsPVName = 'efs-pv';
     const efsPV = cluster.addManifest('efs-pv', {
       apiVersion: 'v1',
       kind: 'PersistentVolume',
       metadata: {
-        name: 'efs-pv'
+        name: efsPVName
       },
       spec: {
         capacity: {
@@ -261,7 +271,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       }
     });
     efsPV.node.addDependency(fileSystem);
-    efsPV.node.addDependency(efsCSI);
+    efsPV.node.addDependency(efsStorageClass);
 
     const nexus3Namespace = 'default';
     const nexusServiceAccount = cluster.addServiceAccount('sonatype-nexus3', {
@@ -356,6 +366,45 @@ export class SonatypeNexus3Stack extends cdk.Stack {
     const enableAutoConfigured: boolean = this.node.tryGetContext('enableAutoConfigured') || false;
     const nexus3ChartName = 'nexus3';
     const nexus3ChartVersion = '2.1.0';
+
+    const neuxs3PurgeFunc = new lambda_python.PythonFunction(this, 'Neuxs3Purge', {
+      description: 'Func purges the resources(such as pvc) left after deleting Nexus3 helm chart',
+      entry: path.join(__dirname, '../lambda.d/nexus3-purge'),
+      index: 'index.py',
+      handler: 'handler',
+      runtime: lambda.Runtime.PYTHON_3_7,
+      environment: cluster.kubectlEnvironment,
+      logRetention: logs.RetentionDays.ONE_MONTH,
+      timeout: cdk.Duration.minutes(15),
+      layers: [ kubectlLayer ],
+      vpc: vpc,
+      securityGroups: cluster.kubectlSecurityGroup ? [cluster.kubectlSecurityGroup] : undefined,
+      vpcSubnets: cluster.kubectlPrivateSubnets ? { subnets: cluster.kubectlPrivateSubnets } : undefined,
+    });
+    neuxs3PurgeFunc.role!.addToPrincipalPolicy(new iam.PolicyStatement({
+      actions: ['eks:DescribeCluster'],
+      resources: [cluster.clusterArn],
+    }));
+    // allow this handler to assume the kubectl role
+    cluster.kubectlRole!.grant(neuxs3PurgeFunc.role!, 'sts:AssumeRole');
+
+    const neuxs3PurgeCR = new cdk.CustomResource(this, 'Neuxs3PurgeCR', {
+      serviceToken: neuxs3PurgeFunc.functionArn,
+      resourceType: 'Custom::Neuxs3-Purge',
+      properties: {
+        ClusterName: cluster.clusterName,
+        RoleArn: cluster.kubectlRole!.roleArn,
+        ObjectType: 'ingress',
+        ObjectName: `${nexus3ChartName}-sonatype-nexus`,
+        ObjectNamespace: nexus3Namespace,
+        JsonPath: '.status.loadBalancer.ingress[0].hostname',
+        TimeoutSeconds: cdk.Duration.minutes(6).toSeconds(),
+        Release: nexus3ChartName,
+    },
+    });
+    neuxs3PurgeCR.node.addDependency(efsPV);
+    neuxs3PurgeCR.node.addDependency(awsLoadBalancerControllerChart);
+
     let nexus3ChartProperties: { [key: string]: any } = {
       statefulset: {
         enabled: true,
@@ -439,8 +488,9 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       values: nexus3ChartProperties,
     });
     nexus3Chart.node.addDependency(nexusServiceAccount);
-    nexus3Chart.node.addDependency(awsLoadBalancerControllerChart);
+    nexus3Chart.node.addDependency(neuxs3PurgeCR);
     if (certificate) {
+      certificate.node.addDependency(neuxs3PurgeCR);
       nexus3Chart.node.addDependency(certificate);
       nexus3Chart.node.addDependency(externalDNSResource!);
 
@@ -506,7 +556,8 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       objectName: `${nexus3ChartName}-sonatype-nexus`,
       jsonPath: '.status.loadBalancer.ingress[0].hostname',
     });
-    albAddress.node.addDependency(nexus3Chart);
+    // albAddress.node.addDependency(nexus3Chart);
+    
     if (enableAutoConfigured) {
       let nexusEndpointHostname: string | undefined;
       if (domainName)

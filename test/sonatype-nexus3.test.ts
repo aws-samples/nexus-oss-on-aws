@@ -310,6 +310,77 @@ describe('Nexus OSS stack', () => {
       },
     });
   });
+
+  test('correct dependencies for deleting stack', () => {
+    // retain custom data after deleting stack
+    expect(stack).toHaveResourceLike('AWS::EFS::FileSystem', {
+      "UpdateReplacePolicy": "Retain",
+      "DeletionPolicy": "Retain",
+    }, ResourcePart.CompleteDefinition);
+
+    // explicitly remove the sg of EFS for deleting the VPC
+    expect(stack).toHaveResourceLike('AWS::EC2::SecurityGroup', {
+      "Properties": {
+        "SecurityGroupIngress": [
+          {
+            "CidrIp": {
+              "Fn::GetAtt": [
+                "NexusVpc88FCF4B5",
+                "CidrBlock"
+              ]
+            },
+            "Description": "allow access efs from inside vpc",
+            "FromPort": 2049,
+            "IpProtocol": "tcp",
+            "ToPort": 2049
+          }
+        ],
+      },
+      "UpdateReplacePolicy": "Delete",
+      "DeletionPolicy": "Delete",
+    }, ResourcePart.CompleteDefinition);
+
+    expect(stack).toHaveResourceLike('Custom::Neuxs3-Purge', {
+      "Properties": {
+        "ClusterName": {
+          "Ref": "MyK8SCluster2BC9D7DF"
+        },
+        "RoleArn": {
+          "Fn::GetAtt": [
+            "MyK8SClusterCreationRole80A92DA5",
+            "Arn"
+          ]
+        },
+        "ObjectType": "ingress",
+        "ObjectName": "nexus3-sonatype-nexus",
+        "ObjectNamespace": "default",
+        "JsonPath": ".status.loadBalancer.ingress[0].hostname",
+        "TimeoutSeconds": 360,
+        "Release": "nexus3",
+      },
+      "DependsOn": [
+        "MyK8SClusterchartAWSLoadBalancerController3478DFA7",
+        "MyK8SClustermanifestefspv625E8547"
+      ],
+    }, ResourcePart.CompleteDefinition);
+
+    expect(stack).toHaveResourceLike('Custom::AWSCDK-EKS-HelmChart', {
+      "Properties": {
+        "Release": "nexus3",
+        "Chart": "sonatype-nexus",
+      },
+      "DependsOn": [
+        "MyK8SClusterKubectlReadyBarrier293D109D",
+        "MyK8SClustermanifestexternaldns9FE6660B",
+        "MyK8SClustersonatypenexus3ConditionJsonD1595E3D",
+        "MyK8SClustersonatypenexus3manifestsonatypenexus3ServiceAccountResource4C5853D6",
+        "MyK8SClustersonatypenexus3RoleDefaultPolicy29290195",
+        "MyK8SClustersonatypenexus3Role37C11172",
+        "Neuxs3PurgeCR",
+        "SSLCertificate2E93C565"
+      ],
+    }, ResourcePart.CompleteDefinition);
+  });
 });
 
 function initializeStackWithContextsAndEnvs(app: cdk.App, stack: cdk.Stack, 

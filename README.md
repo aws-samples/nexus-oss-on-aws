@@ -62,6 +62,13 @@ It would automatically configure the fresh provisioning Nexus3 with below change
 - Delete default `file` based blobstore
 - Create a new blobstore named `s3-blobstore` using the dedicated S3 bucket created by this solution with never expiration policy for artifacts
 
+### How to clean
+Run below command to clean the deployment or delete the `SonatypeNexus3OnEKS` stack via CloudFormation console.
+```
+npm run cleanup
+```
+**NOTE**: you still need manually delete the EFS file system and S3 bucket created by this solution. Those storage might contain your data, be caution before deleting them.
+
 ## Security
 
 See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more information.
