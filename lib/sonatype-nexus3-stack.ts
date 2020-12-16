@@ -13,6 +13,9 @@ import * as s3 from '@aws-cdk/aws-s3';
 import * as route53 from '@aws-cdk/aws-route53';
 
 export class SonatypeNexus3Stack extends cdk.Stack {
+
+  readonly VERSION = '1.0.0';
+
   constructor(scope: cdk.Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
@@ -593,6 +596,8 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       value: `${nexusBlobBucket.bucketName}`,
       description: 'S3 Bucket created for Nexus3 S3 Blobstore'
     });
+
+    this.templateOptions.description = `(SO8020) - Sonatype Nexus OSS on AWS. Template version ${this.VERSION}`;
   }
 
   /**

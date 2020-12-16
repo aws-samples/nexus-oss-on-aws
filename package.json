@@ -1,6 +1,6 @@
 {
   "name": "sonatype-nexus3",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "bin": {
     "sonatype-nexus3": "bin/sonatype-nexus3.js"
   },
