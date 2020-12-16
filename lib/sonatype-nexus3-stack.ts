@@ -60,8 +60,8 @@ export class SonatypeNexus3Stack extends cdk.Stack {
     } else if ((/true/i).test(this.node.tryGetContext('enableR53HostedZone'))) {
       const r53HostedZoneIdParameter = new cdk.CfnParameter(this, 'r53HostedZoneId', {
         type: 'String',
-        default: '(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]',
-        description: 'The hosted zone ID of given domain name.'
+        maxLength: 32,
+        description: 'The hosted zone ID of given domain name in Route 53.'
       });
       hostedZone = route53.HostedZone.fromHostedZoneId(this, 'ImportedHostedZone', r53HostedZoneIdParameter.valueAsString);
       certificate = new certmgr.Certificate(this, `SSLCertificate`, {
