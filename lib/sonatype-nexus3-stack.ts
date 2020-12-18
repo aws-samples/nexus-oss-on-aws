@@ -133,21 +133,6 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       ],
     });
 
-    const nodeRole = new iam.Role(this, 'NodeRole', {
-      assumedBy: new iam.CompositePrincipal(
-        new iam.ServicePrincipal('ec2.amazonaws.com')),
-      inlinePolicies: {
-        s3: new iam.PolicyDocument({
-          statements: [s3BucketPolicy, s3ObjectPolicy]
-        }),
-      },
-      managedPolicies: [
-        iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonEKSWorkerNodePolicy'),
-        iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonEC2ContainerRegistryReadOnly'),
-        iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonEKS_CNI_Policy'),
-      ]
-    });
-
     if (isFargetEnabled) {
       cluster.addFargateProfile('FargetProfile', {
         selectors: [
@@ -166,13 +151,15 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       instanceType: new ec2.InstanceType(this.node.tryGetContext('instanceType') ?? 'm5.large'),
       minSize: 1,
       maxSize: 3,
-      // Have to bind IAM role to node due to Nexus3 uses old AWS Java SDK not supporting IRSA
-      // see https://github.com/sonatype/nexus-public/pull/69 for detail
-      nodeRole,
       labels: {
         usage: 'nexus3'
       },
     });
+    // Have to bind IAM role to node due to Nexus3 uses old AWS Java SDK not supporting IRSA
+    // see https://github.com/sonatype/nexus-public/pull/69 for detail
+    nodeGroup.role.attachInlinePolicy(new iam.Policy(this, 'NexusS3BlobStore', {
+      statements: [s3BucketPolicy, s3ObjectPolicy],
+    }));
 
     // install AWS load balancer via Helm charts
     const awsLoadBalancerControllerVersion = 'v2.0.1';
@@ -368,7 +355,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
 
     const enableAutoConfigured: boolean = this.node.tryGetContext('enableAutoConfigured') || false;
     const nexus3ChartName = 'nexus3';
-    const nexus3ChartVersion = '2.1.0';
+    const nexus3ChartVersion = '4.1.1';
 
     const neuxs3PurgeFunc = new lambda_python.PythonFunction(this, 'Neuxs3Purge', {
       description: 'Func purges the resources(such as pvc) left after deleting Nexus3 helm chart',
@@ -413,7 +400,6 @@ export class SonatypeNexus3Stack extends cdk.Stack {
         enabled: true,
       },
       nexus: {
-        imageTag: '3.23.0',
         imageName: partitionMapping.findInMap(cdk.Aws.PARTITION, 'nexus'),
         resources: {
           requests: {
@@ -457,6 +443,8 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       },
       serviceAccount: {
         create: false,
+        // uncomment below line when using IRSA for nexus
+        // name: nexusServiceAccount.serviceAccountName,
       },
     };
     if (enableAutoConfigured) {

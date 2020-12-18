@@ -52,7 +52,7 @@ jobs:
     
     services:
       nexus:
-        image: quay.io/travelaudience/docker-nexus:3.23.0
+        image: quay.io/travelaudience/docker-nexus:3.27.0
         ports:
           - 8081:8081
         options: >-
