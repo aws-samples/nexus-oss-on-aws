@@ -106,6 +106,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
 
     const nexusBlobBucket = new s3.Bucket(this, `nexus3-blobstore`, {
       removalPolicy: cdk.RemovalPolicy.RETAIN,
+      encryption: s3.BucketEncryption.S3_MANAGED,
     });
     const s3BucketPolicy = new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
@@ -217,10 +218,9 @@ export class SonatypeNexus3Stack extends cdk.Stack {
     efsCSI.node.addDependency(cluster.awsAuth);
     const fileSystem = new efs.FileSystem(this, 'Nexus3FileSystem', {
       vpc,
-      encrypted: false,
-      lifecyclePolicy: efs.LifecyclePolicy.AFTER_14_DAYS,
+      encrypted: true,
       performanceMode: efs.PerformanceMode.GENERAL_PURPOSE,
-      throughputMode: efs.ThroughputMode.BURSTING
+      throughputMode: efs.ThroughputMode.BURSTING,
     });
     fileSystem.connections.allowDefaultPortFrom(ec2.Peer.ipv4(vpc.vpcCidrBlock),
       'allow access efs from inside vpc');
