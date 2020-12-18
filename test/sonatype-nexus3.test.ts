@@ -381,6 +381,24 @@ describe('Nexus OSS stack', () => {
       ],
     }, ResourcePart.CompleteDefinition);
   });
+
+  test('the encryption configuration of storages.', () => {
+    expect(stack).toHaveResourceLike('AWS::S3::Bucket', {
+      "BucketEncryption": {
+        "ServerSideEncryptionConfiguration": [
+          {
+            "ServerSideEncryptionByDefault": {
+              "SSEAlgorithm": "AES256"
+            }
+          }
+        ]
+      },
+    });
+
+    expect(stack).toHaveResourceLike('AWS::EFS::FileSystem', {
+      "Encrypted": true,
+    });
+  });
 });
 
 function initializeStackWithContextsAndEnvs(app: cdk.App, stack: cdk.Stack, 
