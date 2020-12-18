@@ -94,7 +94,7 @@ describe('Nexus OSS stack', () => {
         "Fn::Join": [
           "",
           [
-            "{\"statefulset\":{\"enabled\":true},\"nexus\":{\"imageTag\":\"3.23.0\",\"imageName\":\"",
+            "{\"statefulset\":{\"enabled\":true},\"nexus\":{\"imageName\":\"",
             {
               "Fn::FindInMap": [
                 "PartitionMapping",
@@ -136,7 +136,7 @@ describe('Nexus OSS stack', () => {
       },
       "Release": "nexus3",
       "Chart": "sonatype-nexus",
-      "Version": "2.1.0",
+      "Version": "4.1.1",
       "Namespace": "default",
       "Repository": "https://oteemo.github.io/charts/",
       "Wait": true,
@@ -203,7 +203,7 @@ describe('Nexus OSS stack', () => {
         "Fn::Join": [
           "",
           [
-            "{\"statefulset\":{\"enabled\":true},\"nexus\":{\"imageTag\":\"3.23.0\",\"imageName\":\"",
+            "{\"statefulset\":{\"enabled\":true},\"nexus\":{\"imageName\":\"",
             {
               "Fn::FindInMap": [
                 "PartitionMapping",
