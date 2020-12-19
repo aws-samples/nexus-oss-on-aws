@@ -44,7 +44,7 @@ def handler(event, context):
             nexusHelper.deleteAllRepos()
             nexusHelper.removeDefaultFileBlobstore()
             nexusHelper.createS3Blobstore(blobstoreName, bucketName, '-1')
-            cfn_send(event, context, CFN_SUCCESS, physicalResourceId=physical_id)
+        cfn_send(event, context, CFN_SUCCESS, physicalResourceId=physical_id)
     except KeyError as e:
         cfn_error(f"invalid request. Missing key {str(e)}")
     except Exception as e:

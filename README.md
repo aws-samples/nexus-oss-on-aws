@@ -23,38 +23,41 @@ npm run init
 ```
 
 ### Deployment
-#### Deploy to EKS with managed EC2 nodes
+#### Deploy with mandatory parameters
 ```
-npm run deploy -- --parameters DomainName=<the hostname of nexus3 deployment>
+npm run deploy -- --parameters NexusAdminInitPassword=<init admin password of nexus3>  --parameters DomainName=<the hostname of nexus3 deployment>
 ```
 
 #### Deploy with Route53 managed domain name
 ```
-npm run deploy -- --parameters DomainName=<nexus.mydomain.com> -c r53Domain=<mydomain.com>
+npm run deploy -- --parameters NexusAdminInitPassword=<init admin password of nexus3> --parameters DomainName=<nexus.mydomain.com> -c r53Domain=<mydomain.com>
 ```
 or
 ```
-npm run deploy -- --parameters DomainName=<nexus.mydomain.com> --parameters R53HostedZoneId=<id of route53 hosted zone> -c enableR53HostedZone=true
+npm run deploy -- --parameters NexusAdminInitPassword=<init admin password of nexus3> --parameters DomainName=<nexus.mydomain.com> --parameters R53HostedZoneId=<id of route53 hosted zone> -c enableR53HostedZone=true
 ```
 
 #### Deploy to a new created VPC
 ```
-npm run deploy -- -c createNewVpc=true
+npm run deploy -- <mandatory options> -c createNewVpc=true
 ```
 
 #### Deploy to China regions
 Due to AWS load balancer has different policy requirement for partitions, you need speicfy the target region info via context `region` to pick the corresponding IAM policies.
 ```
-npm run deploy -- -c region=cn-north-1
+npm run deploy -- <mandatory options> -c region=cn-north-1
 ```
 
-### Default login
-Check [installation guide of Helm chart sonatype-nexus](https://github.com/Oteemo/charts/tree/master/charts/sonatype-nexus#installing-the-chart)
+### Init admin password
+You must specify the default init admin password when deploying this solution. The password must satisfy below requirements,
+- at least 8 characters
+- must contain at least 1 uppercase letter, 1 lowercase letter, and 1 number
+- can contain special characters
 
 ### Auto configuration
 Nexus3 supports using [script][nexus3-script] to configure the Nexus3 service, for example, BlobStores, Repositories and so on. The script feature is disabled by default since Nexus3 3.21.2. You can opt-in auto configuration feature of this solution like below that will enable script feature of Nexus.
 ```
-npm run deploy -- -c enableAutoConfigured=true
+npm run deploy -- <mandatory options> -c enableAutoConfigured=true
 ```
 It would automatically configure the fresh provisioning Nexus3 with below changes,
 
@@ -81,7 +84,7 @@ Also this application uses below open source projects,
 
 - [Nexus OSS](https://github.com/sonatype/nexus-public)
 - [travelaudience/kubernetes-nexus](https://github.com/travelaudience/kubernetes-nexus/) 
-- [Oteemo/charts](https://github.com/Oteemo/charts)
+- Nexus3 Helm chart in [Oteemo/charts](https://github.com/Oteemo/charts)
 - [AWS Load Balancer Controller](https://github.com/kubernetes-sigs/aws-load-balancer-controller)
 - [EKS Charts](https://github.com/aws/eks-charts)
 - [aws-efs-csi-driver](https://github.com/kubernetes-sigs/aws-efs-csi-driver)

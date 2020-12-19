@@ -11,10 +11,9 @@ import * as logs from '@aws-cdk/aws-logs';
 import * as path from 'path';
 import * as s3 from '@aws-cdk/aws-s3';
 import * as route53 from '@aws-cdk/aws-route53';
+import * as pjson from '../package.json';
 
 export class SonatypeNexus3Stack extends cdk.Stack {
-
-  readonly VERSION = '1.0.0';
 
   constructor(scope: cdk.Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
@@ -43,6 +42,15 @@ export class SonatypeNexus3Stack extends cdk.Stack {
     });
     const domainName = domainNameParameter.valueAsString;
 
+    const adminInitPassword = new cdk.CfnParameter(this, 'NexusAdminInitPassword', {
+      type: 'String',
+      allowedPattern: '^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[a-zA-Z]).{8,}$',
+      minLength: 8,
+      description: 'The admin init password of Nexus3.',
+      constraintDescription: '- at least 8 characters\n- must contain at least 1 uppercase letter, 1 lowercase letter, and 1 number\n- Can contain special characters',
+      noEcho: true,
+    });
+    
     var hostedZone = null;
     var certificate: certmgr.Certificate | undefined;
     const r53Domain = this.node.tryGetContext('r53Domain');
@@ -262,6 +270,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
     efsPV.node.addDependency(efsStorageClass);
 
     const nexus3Namespace = 'default';
+    const nexus3ChartName = 'nexus3';
     const nexusServiceAccount = cluster.addServiceAccount('sonatype-nexus3', {
       name: 'sonatype-nexus3',
       namespace: nexus3Namespace,
@@ -284,6 +293,21 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       'alb.ingress.kubernetes.io/tags': 'app=nexus3',
       'alb.ingress.kubernetes.io/subnets': vpc.publicSubnets.map(subnet => subnet.subnetId).join(','),
     };
+    const ingressRules : Array<any> = [
+      {
+        http: {
+          paths: [
+            {
+              path: '/*',
+              backend: {
+                serviceName: `${nexus3ChartName}-sonatype-nexus`,
+                servicePort: nexusPort,
+              }
+            }
+          ]
+        }
+      }
+    ];
     var externalDNSResource: cdk.Construct;
     if (certificate) {
       Object.assign(albOptions, {
@@ -291,6 +315,28 @@ export class SonatypeNexus3Stack extends cdk.Stack {
         'alb.ingress.kubernetes.io/ssl-policy': 'ELBSecurityPolicy-TLS-1-2-Ext-2018-06',
         'alb.ingress.kubernetes.io/listen-ports': '[{"HTTP": 80}, {"HTTPS": 443}]',
         'alb.ingress.kubernetes.io/actions.ssl-redirect': '{"Type": "redirect", "RedirectConfig": { "Protocol": "HTTPS", "Port": "443", "StatusCode": "HTTP_301"}}',
+      });
+
+      ingressRules.splice(0, 0, {
+        host: domainName,
+        http: {
+          paths: [
+            {
+              path: '/*',
+              backend: {
+                serviceName: 'ssl-redirect',
+                servicePort: 'use-annotation',
+              }
+            },
+            {
+              path: '/*',
+              backend: {
+                serviceName: `${nexus3ChartName}-sonatype-nexus`,
+                servicePort: nexusPort,
+              }
+            }
+          ]
+        }
       });
 
       // install external dns
@@ -352,7 +398,6 @@ export class SonatypeNexus3Stack extends cdk.Stack {
     }
 
     const enableAutoConfigured: boolean = this.node.tryGetContext('enableAutoConfigured') || false;
-    const nexus3ChartName = 'nexus3';
     const nexus3ChartVersion = '4.1.1';
 
     const neuxs3PurgeFunc = new lambda_python.PythonFunction(this, 'Neuxs3Purge', {
@@ -397,11 +442,14 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       statefulset: {
         enabled: true,
       },
+      initAdminPassword: {
+        enabled: true,
+        password: adminInitPassword.valueAsString,
+      },
       nexus: {
         imageName: partitionMapping.findInMap(cdk.Aws.PARTITION, 'nexus'),
         resources: {
           requests: {
-            cpu: '256m',
             memory: '4800Mi',
           }
         },
@@ -413,12 +461,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
         },
       },
       nexusProxy: {
-        enabled: true,
-        imageName: partitionMapping.findInMap(cdk.Aws.PARTITION, 'nexusProxy'),
-        port: nexusPort,
-        env: {
-          nexusHttpHost: domainName
-        }
+        enabled: false,
       },
       persistence: {
         enabled: true,
@@ -431,6 +474,12 @@ export class SonatypeNexus3Stack extends cdk.Stack {
           enabled: false,
         },
       },
+      nexusCloudiam: {
+        enabled: false,
+        persistence: {
+          enabled: false,
+        },
+      },
       ingress: {
         enabled: true,
         path: '/*',
@@ -438,6 +487,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
         tls: {
           enabled: false,
         },
+        rules: ingressRules,
       },
       serviceAccount: {
         create: false,
@@ -482,61 +532,6 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       certificate.node.addDependency(neuxs3PurgeCR);
       nexus3Chart.node.addDependency(certificate);
       nexus3Chart.node.addDependency(externalDNSResource!);
-
-      // workaround patch to force redirecting http to https
-      const nexus3IngressPatch = new eks.KubernetesPatch(this, `nexus3-ingress-patch-${nexus3ChartVersion}`, {
-        cluster,
-        resourceName: `ingress/${nexus3ChartName}-sonatype-nexus`,
-        resourceNamespace: nexus3Namespace,
-        applyPatch: {
-          spec: {
-            rules: [
-              {
-                host: domainName,
-                http: {
-                  paths: [
-                    {
-                      path: '/*',
-                      backend: {
-                        serviceName: 'ssl-redirect',
-                        servicePort: 'use-annotation',
-                      }
-                    },
-                    {
-                      path: '/*',
-                      backend: {
-                        serviceName: `${nexus3ChartName}-sonatype-nexus`,
-                        servicePort: nexusPort,
-                      }
-                    }
-                  ]
-                }
-              }
-            ]
-          }
-        },
-        restorePatch: {
-          spec: {
-            rules: [
-              {
-                host: domainName,
-                http: {
-                  paths: [
-                    {
-                      path: '/*',
-                      backend: {
-                        serviceName: `${nexus3ChartName}-sonatype-nexus`,
-                        servicePort: nexusPort,
-                      }
-                    }
-                  ]
-                }
-              }
-            ]
-          }
-        },
-      });
-      nexus3IngressPatch.node.addDependency(nexus3Chart);
     }
     const albAddress = new eks.KubernetesObjectValue(this, 'Nexus3ALBAddress', {
       cluster,
@@ -545,14 +540,10 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       objectName: `${nexus3ChartName}-sonatype-nexus`,
       jsonPath: '.status.loadBalancer.ingress[0].hostname',
     });
-    // albAddress.node.addDependency(nexus3Chart);
+    albAddress.node.addDependency(nexus3Chart);
     
     if (enableAutoConfigured) {
-      let nexusEndpointHostname: string | undefined;
-      if (domainName)
-        nexusEndpointHostname = `https://${domainName}`;
-      else
-        nexusEndpointHostname = `http://${albAddress.value}`;
+      const nexusEndpointHostname = `http://${albAddress.value}`;
       if (nexusEndpointHostname) {
         const autoConfigureFunc = new lambda_python.PythonFunction(this, 'Neuxs3AutoCofingure', {
           entry: path.join(__dirname, '../lambda.d/nexuspreconfigure'),
@@ -569,7 +560,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
           resourceType: 'Custom::Nexus3-AutoConfigure',
           properties: {
             Username: 'admin',
-            Password: 'admin123',
+            Password: adminInitPassword.valueAsString,
             Endpoint: nexusEndpointHostname,
             S3BucketName: nexusBlobBucket.bucketName,
           },
@@ -583,7 +574,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       description: 'S3 Bucket created for Nexus3 S3 Blobstore'
     });
 
-    this.templateOptions.description = `(SO8020) - Sonatype Nexus OSS on AWS. Template version ${this.VERSION}`;
+    this.templateOptions.description = `(SO8020) - Sonatype Nexus OSS on AWS. Template version ${pjson.version}`;
   }
 
   /**
