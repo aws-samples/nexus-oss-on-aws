@@ -116,7 +116,7 @@ describe('Nexus OSS stack', () => {
             },
             "\",\"port\":8081,\"env\":{\"nexusHttpHost\":\"",
             {
-              "Ref": "domainName"
+              "Ref": "DomainName"
             },
             "\"}},\"persistence\":{\"enabled\":true,\"storageClass\":\"efs-sc\",\"accessMode\":\"ReadWriteMany\"},\"nexusBackup\":{\"enabled\":false,\"persistence\":{\"enabled\":false}},\"ingress\":{\"enabled\":true,\"path\":\"/*\",\"annotations\":{\"alb.ingress.kubernetes.io/backend-protocol\":\"HTTP\",\"alb.ingress.kubernetes.io/healthcheck-path\":\"/\",\"alb.ingress.kubernetes.io/healthcheck-port\":8081,\"alb.ingress.kubernetes.io/listen-ports\":\"[{\\\"HTTP\\\": 80}, {\\\"HTTPS\\\": 443}]\",\"alb.ingress.kubernetes.io/scheme\":\"internet-facing\",\"alb.ingress.kubernetes.io/inbound-cidrs\":\"0.0.0.0/0\",\"alb.ingress.kubernetes.io/auth-type\":\"none\",\"alb.ingress.kubernetes.io/target-type\":\"ip\",\"kubernetes.io/ingress.class\":\"alb\",\"alb.ingress.kubernetes.io/tags\":\"app=nexus3\",\"alb.ingress.kubernetes.io/subnets\":\"",
             {
@@ -156,15 +156,15 @@ describe('Nexus OSS stack', () => {
   test('ssl certificate with R53 hosted zone when enabling R53 hosted zone', () => {
     expect(stack).toHaveResourceLike('AWS::CertificateManager::Certificate',{
       "DomainName": {
-        "Ref": "domainName"
+        "Ref": "DomainName"
       },
       "DomainValidationOptions": [
         {
           "DomainName": {
-            "Ref": "domainName"
+            "Ref": "DomainName"
           },
           "HostedZoneId": {
-            "Ref": "r53HostedZoneId"
+            "Ref": "R53HostedZoneId"
           }
         }
       ],
@@ -225,7 +225,7 @@ describe('Nexus OSS stack', () => {
             },
             "\",\"port\":8081,\"env\":{\"nexusHttpHost\":\"",
             {
-              "Ref": "domainName"
+              "Ref": "DomainName"
             },
             "\"}},\"persistence\":{\"enabled\":true,\"storageClass\":\"efs-sc\",\"accessMode\":\"ReadWriteMany\"},\"nexusBackup\":{\"enabled\":false,\"persistence\":{\"enabled\":false}},\"ingress\":{\"enabled\":true,\"path\":\"/*\",\"annotations\":{\"alb.ingress.kubernetes.io/backend-protocol\":\"HTTP\",\"alb.ingress.kubernetes.io/healthcheck-path\":\"/\",\"alb.ingress.kubernetes.io/healthcheck-port\":8081,\"alb.ingress.kubernetes.io/listen-ports\":\"[{\\\"HTTP\\\": 80}, {\\\"HTTPS\\\": 443}]\",\"alb.ingress.kubernetes.io/scheme\":\"internet-facing\",\"alb.ingress.kubernetes.io/inbound-cidrs\":\"0.0.0.0/0\",\"alb.ingress.kubernetes.io/auth-type\":\"none\",\"alb.ingress.kubernetes.io/target-type\":\"ip\",\"kubernetes.io/ingress.class\":\"alb\",\"alb.ingress.kubernetes.io/tags\":\"app=nexus3\",\"alb.ingress.kubernetes.io/subnets\":\"subnet-000f2b20b0ebaef37,subnet-0b2cce92f08506a9a,subnet-0571b340c9f28375c\",\"alb.ingress.kubernetes.io/certificate-arn\":\"",
             {
@@ -253,7 +253,7 @@ describe('Nexus OSS stack', () => {
             [
               "https://",
               {
-                "Ref": "domainName"
+                "Ref": "DomainName"
               }
             ]
           ]
@@ -263,7 +263,7 @@ describe('Nexus OSS stack', () => {
         }
       },
       "DependsOn": [
-        "MyK8SClusterchartNexus321315D47"
+        "NexusClusterchartNexus37BADE970"
       ],
     }, ResourcePart.CompleteDefinition);
   });
@@ -300,11 +300,14 @@ describe('Nexus OSS stack', () => {
         "Fn::Join": [
           "",
           [
-            "[{\"apiVersion\":\"rbac.authorization.k8s.io/v1beta1\",\"kind\":\"ClusterRole\",\"metadata\":{\"name\":\"external-dns\",\"labels\":{\"aws.cdk.eks/prune-c8849b69f7ad812f2fdf537515a65251b0219915b5\":\"\"}},\"rules\":[{\"apiGroups\":[\"\"],\"resources\":[\"services\"],\"verbs\":[\"get\",\"watch\",\"list\"]},{\"apiGroups\":[\"\"],\"resources\":[\"pods\"],\"verbs\":[\"get\",\"watch\",\"list\"]},{\"apiGroups\":[\"extensions\"],\"resources\":[\"ingresses\"],\"verbs\":[\"get\",\"watch\",\"list\"]},{\"apiGroups\":[\"\"],\"resources\":[\"nodes\"],\"verbs\":[\"list\"]},{\"apiGroups\":[\"\"],\"resources\":[\"endpoints\"],\"verbs\":[\"get\",\"watch\",\"list\"]}]},{\"apiVersion\":\"rbac.authorization.k8s.io/v1beta1\",\"kind\":\"ClusterRoleBinding\",\"metadata\":{\"name\":\"external-dns-viewer\",\"labels\":{\"aws.cdk.eks/prune-c8849b69f7ad812f2fdf537515a65251b0219915b5\":\"\"}},\"roleRef\":{\"apiGroup\":\"rbac.authorization.k8s.io\",\"kind\":\"ClusterRole\",\"name\":\"external-dns\"},\"subjects\":[{\"kind\":\"ServiceAccount\",\"name\":\"external-dns\",\"namespace\":\"default\"}]},{\"apiVersion\":\"apps/v1\",\"kind\":\"Deployment\",\"metadata\":{\"name\":\"external-dns\",\"labels\":{\"aws.cdk.eks/prune-c8849b69f7ad812f2fdf537515a65251b0219915b5\":\"\"}},\"spec\":{\"selector\":{\"matchLabels\":{\"app\":\"external-dns\"}},\"strategy\":{\"type\":\"Recreate\"},\"template\":{\"metadata\":{\"labels\":{\"app\":\"external-dns\"}},\"spec\":{\"serviceAccountName\":\"external-dns\",\"containers\":[{\"name\":\"external-dns\",\"image\":\"bitnami/external-dns:0.7.4\",\"args\":[\"--source=service\",\"--source=ingress\",\"--domain-filter=\",\"--provider=aws\",\"--policy=upsert-only\",\"--aws-zone-type=public\",\"--registry=txt\",\"--txt-owner-id=nexus3\"],\"env\":[{\"name\":\"AWS_REGION\",\"value\":\"",
+            "[{\"apiVersion\":\"v1\",\"kind\":\"ServiceAccount\",\"metadata\":{\"name\":\"external-dns\",\"namespace\":\"default\",\"labels\":{\"aws.cdk.eks/prune-c85512b0f3c9c03a9294d46c98f9f1357963ae570e\":\"\",\"app.kubernetes.io/name\":\"external-dns\"},\"annotations\":{\"eks.amazonaws.com/role-arn\":\"",
             {
-              "Ref": "AWS::Region"
+              "Fn::GetAtt": [
+                "NexusClusterexternaldnsRole25A6F41E",
+                "Arn"
+              ]
             },
-            "\"}]}],\"securityContext\":{\"fsGroup\":65534}}}}}]"
+            "\"}}}]"
           ]
         ]
       },
@@ -343,11 +346,11 @@ describe('Nexus OSS stack', () => {
     expect(stack).toHaveResourceLike('Custom::Neuxs3-Purge', {
       "Properties": {
         "ClusterName": {
-          "Ref": "MyK8SCluster2BC9D7DF"
+          "Ref": "NexusCluster2168A4B1"
         },
         "RoleArn": {
           "Fn::GetAtt": [
-            "MyK8SClusterCreationRole80A92DA5",
+            "NexusClusterCreationRole5D1FBB93",
             "Arn"
           ]
         },
@@ -359,8 +362,8 @@ describe('Nexus OSS stack', () => {
         "Release": "nexus3",
       },
       "DependsOn": [
-        "MyK8SClusterchartAWSLoadBalancerController3478DFA7",
-        "MyK8SClustermanifestefspv625E8547"
+        "NexusClusterchartAWSLoadBalancerController06E2710B",
+        "NexusClustermanifestefspv19E0A105"
       ],
     }, ResourcePart.CompleteDefinition);
 
@@ -370,13 +373,13 @@ describe('Nexus OSS stack', () => {
         "Chart": "sonatype-nexus",
       },
       "DependsOn": [
-        "MyK8SClusterKubectlReadyBarrier293D109D",
-        "MyK8SClustermanifestexternaldns9FE6660B",
-        "MyK8SClustersonatypenexus3ConditionJsonD1595E3D",
-        "MyK8SClustersonatypenexus3manifestsonatypenexus3ServiceAccountResource4C5853D6",
-        "MyK8SClustersonatypenexus3RoleDefaultPolicy29290195",
-        "MyK8SClustersonatypenexus3Role37C11172",
         "Neuxs3PurgeCR",
+        "NexusClusterKubectlReadyBarrier6571FFC0",
+        "NexusClustermanifestexternaldns8C93099A",
+        "NexusClustersonatypenexus3ConditionJsonBA718515",
+        "NexusClustersonatypenexus3manifestsonatypenexus3ServiceAccountResourceDA1D0F12",
+        "NexusClustersonatypenexus3RoleDefaultPolicy0CF1CA3B",
+        "NexusClustersonatypenexus3RoleFE3455FB",
         "SSLCertificate2E93C565"
       ],
     }, ResourcePart.CompleteDefinition);
