@@ -94,7 +94,11 @@ describe('Nexus OSS stack', () => {
         "Fn::Join": [
           "",
           [
-            "{\"statefulset\":{\"enabled\":true},\"nexus\":{\"imageName\":\"",
+            "{\"statefulset\":{\"enabled\":true},\"initAdminPassword\":{\"enabled\":true,\"password\":\"",
+            {
+              "Ref": "NexusAdminInitPassword"
+            },
+            "\"},\"nexus\":{\"imageName\":\"",
             {
               "Fn::FindInMap": [
                 "PartitionMapping",
@@ -104,21 +108,7 @@ describe('Nexus OSS stack', () => {
                 "nexus"
               ]
             },
-            "\",\"resources\":{\"requests\":{\"cpu\":\"256m\",\"memory\":\"4800Mi\"}},\"livenessProbe\":{\"path\":\"/\"},\"nodeSelector\":{\"usage\":\"nexus3\"}},\"nexusProxy\":{\"enabled\":true,\"imageName\":\"",
-            {
-              "Fn::FindInMap": [
-                "PartitionMapping",
-                {
-                  "Ref": "AWS::Partition"
-                },
-                "nexusProxy"
-              ]
-            },
-            "\",\"port\":8081,\"env\":{\"nexusHttpHost\":\"",
-            {
-              "Ref": "DomainName"
-            },
-            "\"}},\"persistence\":{\"enabled\":true,\"storageClass\":\"efs-sc\",\"accessMode\":\"ReadWriteMany\"},\"nexusBackup\":{\"enabled\":false,\"persistence\":{\"enabled\":false}},\"ingress\":{\"enabled\":true,\"path\":\"/*\",\"annotations\":{\"alb.ingress.kubernetes.io/backend-protocol\":\"HTTP\",\"alb.ingress.kubernetes.io/healthcheck-path\":\"/\",\"alb.ingress.kubernetes.io/healthcheck-port\":8081,\"alb.ingress.kubernetes.io/listen-ports\":\"[{\\\"HTTP\\\": 80}, {\\\"HTTPS\\\": 443}]\",\"alb.ingress.kubernetes.io/scheme\":\"internet-facing\",\"alb.ingress.kubernetes.io/inbound-cidrs\":\"0.0.0.0/0\",\"alb.ingress.kubernetes.io/auth-type\":\"none\",\"alb.ingress.kubernetes.io/target-type\":\"ip\",\"kubernetes.io/ingress.class\":\"alb\",\"alb.ingress.kubernetes.io/tags\":\"app=nexus3\",\"alb.ingress.kubernetes.io/subnets\":\"",
+            "\",\"resources\":{\"requests\":{\"memory\":\"4800Mi\"}},\"livenessProbe\":{\"path\":\"/\"},\"nodeSelector\":{\"usage\":\"nexus3\"}},\"nexusProxy\":{\"enabled\":false},\"persistence\":{\"enabled\":true,\"storageClass\":\"efs-sc\",\"accessMode\":\"ReadWriteMany\"},\"nexusBackup\":{\"enabled\":false,\"persistence\":{\"enabled\":false}},\"nexusCloudiam\":{\"enabled\":false,\"persistence\":{\"enabled\":false}},\"ingress\":{\"enabled\":true,\"path\":\"/*\",\"annotations\":{\"alb.ingress.kubernetes.io/backend-protocol\":\"HTTP\",\"alb.ingress.kubernetes.io/healthcheck-path\":\"/\",\"alb.ingress.kubernetes.io/healthcheck-port\":8081,\"alb.ingress.kubernetes.io/listen-ports\":\"[{\\\"HTTP\\\": 80}, {\\\"HTTPS\\\": 443}]\",\"alb.ingress.kubernetes.io/scheme\":\"internet-facing\",\"alb.ingress.kubernetes.io/inbound-cidrs\":\"0.0.0.0/0\",\"alb.ingress.kubernetes.io/auth-type\":\"none\",\"alb.ingress.kubernetes.io/target-type\":\"ip\",\"kubernetes.io/ingress.class\":\"alb\",\"alb.ingress.kubernetes.io/tags\":\"app=nexus3\",\"alb.ingress.kubernetes.io/subnets\":\"",
             {
               "Ref": "NexusVpcPublicSubnet1SubnetE9292C67"
             },
@@ -130,7 +120,11 @@ describe('Nexus OSS stack', () => {
             {
               "Ref": "SSLCertificate2E93C565"
             },
-            "\",\"alb.ingress.kubernetes.io/ssl-policy\":\"ELBSecurityPolicy-TLS-1-2-Ext-2018-06\",\"alb.ingress.kubernetes.io/actions.ssl-redirect\":\"{\\\"Type\\\": \\\"redirect\\\", \\\"RedirectConfig\\\": { \\\"Protocol\\\": \\\"HTTPS\\\", \\\"Port\\\": \\\"443\\\", \\\"StatusCode\\\": \\\"HTTP_301\\\"}}\"},\"tls\":{\"enabled\":false}},\"serviceAccount\":{\"create\":false}}"
+            "\",\"alb.ingress.kubernetes.io/ssl-policy\":\"ELBSecurityPolicy-TLS-1-2-Ext-2018-06\",\"alb.ingress.kubernetes.io/actions.ssl-redirect\":\"{\\\"Type\\\": \\\"redirect\\\", \\\"RedirectConfig\\\": { \\\"Protocol\\\": \\\"HTTPS\\\", \\\"Port\\\": \\\"443\\\", \\\"StatusCode\\\": \\\"HTTP_301\\\"}}\"},\"tls\":{\"enabled\":false},\"rules\":[{\"host\":\"",
+            {
+              "Ref": "DomainName"
+            },
+            "\",\"http\":{\"paths\":[{\"path\":\"/*\",\"backend\":{\"serviceName\":\"ssl-redirect\",\"servicePort\":\"use-annotation\"}},{\"path\":\"/*\",\"backend\":{\"serviceName\":\"nexus3-sonatype-nexus\",\"servicePort\":8081}}]}},{\"http\":{\"paths\":[{\"path\":\"/*\",\"backend\":{\"serviceName\":\"nexus3-sonatype-nexus\",\"servicePort\":8081}}]}}]},\"serviceAccount\":{\"create\":false}}"
           ]
         ]
       },
@@ -203,7 +197,11 @@ describe('Nexus OSS stack', () => {
         "Fn::Join": [
           "",
           [
-            "{\"statefulset\":{\"enabled\":true},\"nexus\":{\"imageName\":\"",
+            "{\"statefulset\":{\"enabled\":true},\"initAdminPassword\":{\"enabled\":true,\"password\":\"",
+            {
+              "Ref": "NexusAdminInitPassword"
+            },
+            "\"},\"nexus\":{\"imageName\":\"",
             {
               "Fn::FindInMap": [
                 "PartitionMapping",
@@ -213,25 +211,15 @@ describe('Nexus OSS stack', () => {
                 "nexus"
               ]
             },
-            "\",\"resources\":{\"requests\":{\"cpu\":\"256m\",\"memory\":\"4800Mi\"}},\"livenessProbe\":{\"path\":\"/\"},\"nodeSelector\":{\"usage\":\"nexus3\"}},\"nexusProxy\":{\"enabled\":true,\"imageName\":\"",
-            {
-              "Fn::FindInMap": [
-                "PartitionMapping",
-                {
-                  "Ref": "AWS::Partition"
-                },
-                "nexusProxy"
-              ]
-            },
-            "\",\"port\":8081,\"env\":{\"nexusHttpHost\":\"",
-            {
-              "Ref": "DomainName"
-            },
-            "\"}},\"persistence\":{\"enabled\":true,\"storageClass\":\"efs-sc\",\"accessMode\":\"ReadWriteMany\"},\"nexusBackup\":{\"enabled\":false,\"persistence\":{\"enabled\":false}},\"ingress\":{\"enabled\":true,\"path\":\"/*\",\"annotations\":{\"alb.ingress.kubernetes.io/backend-protocol\":\"HTTP\",\"alb.ingress.kubernetes.io/healthcheck-path\":\"/\",\"alb.ingress.kubernetes.io/healthcheck-port\":8081,\"alb.ingress.kubernetes.io/listen-ports\":\"[{\\\"HTTP\\\": 80}, {\\\"HTTPS\\\": 443}]\",\"alb.ingress.kubernetes.io/scheme\":\"internet-facing\",\"alb.ingress.kubernetes.io/inbound-cidrs\":\"0.0.0.0/0\",\"alb.ingress.kubernetes.io/auth-type\":\"none\",\"alb.ingress.kubernetes.io/target-type\":\"ip\",\"kubernetes.io/ingress.class\":\"alb\",\"alb.ingress.kubernetes.io/tags\":\"app=nexus3\",\"alb.ingress.kubernetes.io/subnets\":\"subnet-000f2b20b0ebaef37,subnet-0b2cce92f08506a9a,subnet-0571b340c9f28375c\",\"alb.ingress.kubernetes.io/certificate-arn\":\"",
+            "\",\"resources\":{\"requests\":{\"memory\":\"4800Mi\"}},\"livenessProbe\":{\"path\":\"/\"},\"nodeSelector\":{\"usage\":\"nexus3\"}},\"nexusProxy\":{\"enabled\":false},\"persistence\":{\"enabled\":true,\"storageClass\":\"efs-sc\",\"accessMode\":\"ReadWriteMany\"},\"nexusBackup\":{\"enabled\":false,\"persistence\":{\"enabled\":false}},\"nexusCloudiam\":{\"enabled\":false,\"persistence\":{\"enabled\":false}},\"ingress\":{\"enabled\":true,\"path\":\"/*\",\"annotations\":{\"alb.ingress.kubernetes.io/backend-protocol\":\"HTTP\",\"alb.ingress.kubernetes.io/healthcheck-path\":\"/\",\"alb.ingress.kubernetes.io/healthcheck-port\":8081,\"alb.ingress.kubernetes.io/listen-ports\":\"[{\\\"HTTP\\\": 80}, {\\\"HTTPS\\\": 443}]\",\"alb.ingress.kubernetes.io/scheme\":\"internet-facing\",\"alb.ingress.kubernetes.io/inbound-cidrs\":\"0.0.0.0/0\",\"alb.ingress.kubernetes.io/auth-type\":\"none\",\"alb.ingress.kubernetes.io/target-type\":\"ip\",\"kubernetes.io/ingress.class\":\"alb\",\"alb.ingress.kubernetes.io/tags\":\"app=nexus3\",\"alb.ingress.kubernetes.io/subnets\":\"subnet-000f2b20b0ebaef37,subnet-0b2cce92f08506a9a,subnet-0571b340c9f28375c\",\"alb.ingress.kubernetes.io/certificate-arn\":\"",
             {
               "Ref": "SSLCertificate2E93C565"
             },
-            "\",\"alb.ingress.kubernetes.io/ssl-policy\":\"ELBSecurityPolicy-TLS-1-2-Ext-2018-06\",\"alb.ingress.kubernetes.io/actions.ssl-redirect\":\"{\\\"Type\\\": \\\"redirect\\\", \\\"RedirectConfig\\\": { \\\"Protocol\\\": \\\"HTTPS\\\", \\\"Port\\\": \\\"443\\\", \\\"StatusCode\\\": \\\"HTTP_301\\\"}}\"},\"tls\":{\"enabled\":false}},\"serviceAccount\":{\"create\":false},\"config\":{\"enabled\":true,\"data\":{\"nexus.properties\":\"nexus.scripts.allowCreation=true\"}},\"deployment\":{\"additionalVolumeMounts\":[{\"mountPath\":\"/nexus-data/etc/nexus.properties\",\"subPath\":\"nexus.properties\",\"name\":\"sonatype-nexus-conf\"}]}}"
+            "\",\"alb.ingress.kubernetes.io/ssl-policy\":\"ELBSecurityPolicy-TLS-1-2-Ext-2018-06\",\"alb.ingress.kubernetes.io/actions.ssl-redirect\":\"{\\\"Type\\\": \\\"redirect\\\", \\\"RedirectConfig\\\": { \\\"Protocol\\\": \\\"HTTPS\\\", \\\"Port\\\": \\\"443\\\", \\\"StatusCode\\\": \\\"HTTP_301\\\"}}\"},\"tls\":{\"enabled\":false},\"rules\":[{\"host\":\"",
+            {
+              "Ref": "DomainName"
+            },
+            "\",\"http\":{\"paths\":[{\"path\":\"/*\",\"backend\":{\"serviceName\":\"ssl-redirect\",\"servicePort\":\"use-annotation\"}},{\"path\":\"/*\",\"backend\":{\"serviceName\":\"nexus3-sonatype-nexus\",\"servicePort\":8081}}]}},{\"http\":{\"paths\":[{\"path\":\"/*\",\"backend\":{\"serviceName\":\"nexus3-sonatype-nexus\",\"servicePort\":8081}}]}}]},\"serviceAccount\":{\"create\":false},\"config\":{\"enabled\":true,\"data\":{\"nexus.properties\":\"nexus.scripts.allowCreation=true\"}},\"deployment\":{\"additionalVolumeMounts\":[{\"mountPath\":\"/nexus-data/etc/nexus.properties\",\"subPath\":\"nexus.properties\",\"name\":\"sonatype-nexus-conf\"}]}}"
           ]
         ]
       }
@@ -246,14 +234,19 @@ describe('Nexus OSS stack', () => {
           ]
         },
         "Username": "admin",
-        "Password": "admin123",
+        "Password": {
+          "Ref": "NexusAdminInitPassword",
+        },
         "Endpoint": {
           "Fn::Join": [
             "",
             [
-              "https://",
+              "http://",
               {
-                "Ref": "DomainName"
+                "Fn::GetAtt": [
+                  "Nexus3ALBAddress17C0552F",
+                  "Value"
+                ]
               }
             ]
           ]
@@ -402,6 +395,7 @@ describe('Nexus OSS stack', () => {
       "Encrypted": true,
     });
   });
+
 });
 
 function initializeStackWithContextsAndEnvs(app: cdk.App, stack: cdk.Stack, 
