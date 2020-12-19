@@ -25,16 +25,16 @@ npm run init
 ### Deployment
 #### Deploy to EKS with managed EC2 nodes
 ```
-npm run deploy -- --parameters domainName=<the hostname of nexus3 deployment>
+npm run deploy -- --parameters DomainName=<the hostname of nexus3 deployment>
 ```
 
 #### Deploy with Route53 managed domain name
 ```
-npm run deploy -- --parameters domainName=<nexus.mydomain.com> -c r53Domain=<mydomain.com>
+npm run deploy -- --parameters DomainName=<nexus.mydomain.com> -c r53Domain=<mydomain.com>
 ```
 or
 ```
-npm run deploy -- --parameters domainName=<nexus.mydomain.com> --parameters r53HostedZoneId=<id of route53 hosted zone> -c enableR53HostedZone=true
+npm run deploy -- --parameters DomainName=<nexus.mydomain.com> --parameters R53HostedZoneId=<id of route53 hosted zone> -c enableR53HostedZone=true
 ```
 
 #### Deploy to a new created VPC

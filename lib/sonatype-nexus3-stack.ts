@@ -35,14 +35,13 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       }
     });
 
-    const domainNameParameter = new cdk.CfnParameter(this, 'domainName', {
+    const domainNameParameter = new cdk.CfnParameter(this, 'DomainName', {
       type: 'String',
       allowedPattern: '(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]',
-      description: 'The domain name of Nexus OSS deployment.'
+      description: 'The domain name of Nexus OSS deployment, such as mydomain.com.',
+      constraintDescription: 'validate domain name without protocol',
     });
     const domainName = domainNameParameter.valueAsString;
-    if (!domainName)
-      throw new Error('Must specify the custom domain name.');
 
     var hostedZone = null;
     var certificate: certmgr.Certificate | undefined;
@@ -58,10 +57,9 @@ export class SonatypeNexus3Stack extends cdk.Stack {
         validation: certmgr.CertificateValidation.fromDns(hostedZone),
       });
     } else if ((/true/i).test(this.node.tryGetContext('enableR53HostedZone'))) {
-      const r53HostedZoneIdParameter = new cdk.CfnParameter(this, 'r53HostedZoneId', {
-        type: 'String',
-        maxLength: 32,
-        description: 'The hosted zone ID of given domain name in Route 53.'
+      const r53HostedZoneIdParameter = new cdk.CfnParameter(this, 'R53HostedZoneId', {
+        type: 'AWS::Route53::HostedZone::Id',
+        description: 'The hosted zone ID of given domain name in Route 53.',
       });
       hostedZone = route53.HostedZone.fromHostedZoneId(this, 'ImportedHostedZone', r53HostedZoneIdParameter.valueAsString);
       certificate = new certmgr.Certificate(this, `SSLCertificate`, {
@@ -94,7 +92,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       applicationId: partitionMapping.findInMap(cdk.Aws.PARTITION, 'kubectlLayerAppid'),
     });
     const isFargetEnabled = (this.node.tryGetContext('enableFarget') || 'false').toLowerCase() === 'true';
-    const cluster = new eks.Cluster(this, 'MyK8SCluster', {
+    const cluster = new eks.Cluster(this, 'NexusCluster', {
       vpc,
       defaultCapacity: 0,
       kubectlEnabled: true,
