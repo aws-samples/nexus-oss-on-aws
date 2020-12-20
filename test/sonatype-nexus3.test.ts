@@ -273,7 +273,7 @@ describe('Nexus OSS stack', () => {
     expect(stack).toHaveResourceLike('Custom::AWSCDK-EKS-HelmChart', {
       "Release": "aws-load-balancer-controller",
       "Chart": "aws-load-balancer-controller",
-      "Version": "1.0.8",
+      "Version": "1.1.0",
       "Repository": "https://aws.github.io/eks-charts",
     });
   });

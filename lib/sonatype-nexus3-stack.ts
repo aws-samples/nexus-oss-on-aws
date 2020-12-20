@@ -169,7 +169,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
     }));
 
     // install AWS load balancer via Helm charts
-    const awsLoadBalancerControllerVersion = 'v2.0.1';
+    const awsLoadBalancerControllerVersion = 'v2.1.0';
     const awsControllerBaseResourceBaseUrl = `https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/${awsLoadBalancerControllerVersion}/docs`;
     const targetRegion = this.node.tryGetContext('region') ?? 'us-east-1';
     const awsControllerPolicyUrl = `${awsControllerBaseResourceBaseUrl}/install/iam_policy${targetRegion.startsWith('cn-') ? '_cn' : ''}.json`;
@@ -191,7 +191,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       repository: 'https://aws.github.io/eks-charts',
       namespace: albNamespace,
       release: 'aws-load-balancer-controller',
-      version: '1.0.8', // mapping to v2.0.1
+      version: '1.1.0', // mapping to v2.1.0
       wait: true,
       timeout: cdk.Duration.minutes(15),
       values: {
@@ -368,26 +368,16 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       const externalDNSResources = yaml.safeLoadAll(
         request('GET', `${awsControllerBaseResourceBaseUrl}/examples/external-dns.yaml`)
           .getBody('utf-8').replace('external-dns-test.my-org.com', r53Domain ?? '')
-          .replace('0.7.1', '0.7.4') // pick external-dns 0.7.2+ with Route53 fix in AWS China
           .replace('my-identifier', 'nexus3'))
         .filter((res: any) => { return res['kind'] != 'ServiceAccount' })
         .map((res: any) => {
-          if (res['kind'] === 'ClusterRole') {
-            res['rules'].push({
-              apiGroups: [''],
-              resources: ['endpoints'],
-              verbs: ["get", "watch", "list"]
-            });
-          } else if (res['kind'] === 'Deployment') {
+          if (res['kind'] === 'Deployment') {
             res['spec']['template']['spec']['containers'][0]['env'] = [
               {
                 name: 'AWS_REGION',
                 value: cdk.Aws.REGION,
               }
             ];
-            res['spec']['template']['spec']['securityContext'] = {
-              fsGroup: 65534,
-            };
           }
           return res;
         });
