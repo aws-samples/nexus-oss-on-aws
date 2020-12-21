@@ -63,9 +63,15 @@ def handler(event, context):
             output = wait_for_purge(['get', '-n', object_namespace, object_type, object_name, "-o=jsonpath='{{{0}}}'".format(json_path)], int(timeout_seconds))
             logger.info(f"The resource {object_type}/{object_name} has been purged.")
 
-            kubectl(['delete', '-n', object_namespace, 'pvc', '-l', f'release={relase}'])
-            logger.info(f'The PVC of helm relese {relase} is purged.')
-
+            try:
+                kubectl(['delete', '-n', object_namespace, 'pvc', '-l', f'release={relase}'])
+                logger.info(f'The PVC of helm relese {relase} is purged.')
+            except Exception as e:
+                error = str(e)
+                if 'NotFound' in error or b'i/o timeout' in error:
+                    logger.warn(f"Got error '{error}'', cluster/resource might have been purged.")
+                else:
+                    raise
         cfn_send(event, context, CFN_SUCCESS, physicalResourceId=physical_id)
     except KeyError as e:
         cfn_error(f"invalid request. Missing key {str(e)}")
@@ -124,6 +130,11 @@ def wait_for_purge(args, timeout_seconds):
       # also a recoverable error
       if 'NotFound' in error:
           return 'Resource is purged'
+      elif b'i/o timeout' in error:
+          logger.warn(f"Got connection error '{error}' when watching resource, ignore it")
+          return 'Cluster might be purged'
+      else:
+          raise
     time.sleep(10)
 
   raise RuntimeError(f'Timeout waiting for output from kubectl command: {args} (last_error={error})')
