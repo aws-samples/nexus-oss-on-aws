@@ -18,6 +18,8 @@ export class SonatypeNexus3Stack extends cdk.Stack {
   constructor(scope: cdk.Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
+    const targetRegion = this.node.tryGetContext('region') ?? 'us-east-1';
+
     const partitionMapping = new cdk.CfnMapping(this, 'PartitionMapping', {
       mapping: {
         aws: {
@@ -42,12 +44,13 @@ export class SonatypeNexus3Stack extends cdk.Stack {
     });
     const domainName = domainNameParameter.valueAsString;
 
+    const constraintDescription = '- at least 8 characters\n- must contain at least 1 uppercase letter, 1 lowercase letter, and 1 number\n- Can contain special characters';
     const adminInitPassword = new cdk.CfnParameter(this, 'NexusAdminInitPassword', {
       type: 'String',
       allowedPattern: '^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[a-zA-Z]).{8,}$',
       minLength: 8,
-      description: 'The admin init password of Nexus3.',
-      constraintDescription: '- at least 8 characters\n- must contain at least 1 uppercase letter, 1 lowercase letter, and 1 number\n- Can contain special characters',
+      description: `The admin init password of Nexus3. ${constraintDescription}`,
+      constraintDescription,
       noEcho: true,
     });
     
@@ -66,7 +69,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       });
     } else if ((/true/i).test(this.node.tryGetContext('enableR53HostedZone'))) {
       const r53HostedZoneIdParameter = new cdk.CfnParameter(this, 'R53HostedZoneId', {
-        type: 'AWS::Route53::HostedZone::Id',
+        type: targetRegion.startsWith('cn-') ? 'String' : 'AWS::Route53::HostedZone::Id',
         description: 'The hosted zone ID of given domain name in Route 53.',
       });
       hostedZone = route53.HostedZone.fromHostedZoneId(this, 'ImportedHostedZone', r53HostedZoneIdParameter.valueAsString);
@@ -171,7 +174,6 @@ export class SonatypeNexus3Stack extends cdk.Stack {
     // install AWS load balancer via Helm charts
     const awsLoadBalancerControllerVersion = 'v2.1.0';
     const awsControllerBaseResourceBaseUrl = `https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/${awsLoadBalancerControllerVersion}/docs`;
-    const targetRegion = this.node.tryGetContext('region') ?? 'us-east-1';
     const awsControllerPolicyUrl = `${awsControllerBaseResourceBaseUrl}/install/iam_policy${targetRegion.startsWith('cn-') ? '_cn' : ''}.json`;
     const albNamespace = 'kube-system';
     const albServiceAccount = cluster.addServiceAccount('aws-load-balancer-controller', {
