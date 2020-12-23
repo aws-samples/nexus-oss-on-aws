@@ -396,6 +396,42 @@ describe('Nexus OSS stack', () => {
     });
   });
 
+  test('deploy alb as interal.', () => {
+    const context = {
+      internalALB: true,
+      enableR53HostedZone: true,
+    };
+    ({ app, stack } = initializeStackWithContextsAndEnvs(app, stack, context));
+
+    expect(stack).toCountResources('AWS::CertificateManager::Certificate', 0);
+
+    expect(stack).toHaveResourceLike('Custom::AWSCDK-EKS-HelmChart', {
+      "Release": "nexus3",
+      "Values": {
+        "Fn::Join": [
+          "",
+          [
+            "{\"statefulset\":{\"enabled\":true},\"initAdminPassword\":{\"enabled\":true,\"password\":\"",
+            {
+              "Ref": "NexusAdminInitPassword"
+            },
+            "\"},\"nexus\":{\"imageName\":\"",
+            {
+              "Fn::FindInMap": [
+                "PartitionMapping",
+                {
+                  "Ref": "AWS::Partition"
+                },
+                "nexus"
+              ]
+            },
+            "\",\"resources\":{\"requests\":{\"memory\":\"4800Mi\"}},\"livenessProbe\":{\"path\":\"/\"},\"nodeSelector\":{\"usage\":\"nexus3\"}},\"nexusProxy\":{\"enabled\":false},\"persistence\":{\"enabled\":true,\"storageClass\":\"efs-sc\",\"accessMode\":\"ReadWriteMany\"},\"nexusBackup\":{\"enabled\":false,\"persistence\":{\"enabled\":false}},\"nexusCloudiam\":{\"enabled\":false,\"persistence\":{\"enabled\":false}},\"ingress\":{\"enabled\":true,\"path\":\"/*\",\"annotations\":{\"alb.ingress.kubernetes.io/backend-protocol\":\"HTTP\",\"alb.ingress.kubernetes.io/healthcheck-path\":\"/\",\"alb.ingress.kubernetes.io/healthcheck-port\":8081,\"alb.ingress.kubernetes.io/listen-ports\":\"[{\\\"HTTP\\\": 80}]\",\"alb.ingress.kubernetes.io/scheme\":\"internal\",\"alb.ingress.kubernetes.io/inbound-cidrs\":\"10.58.0.0/16\",\"alb.ingress.kubernetes.io/auth-type\":\"none\",\"alb.ingress.kubernetes.io/target-type\":\"ip\",\"kubernetes.io/ingress.class\":\"alb\",\"alb.ingress.kubernetes.io/tags\":\"app=nexus3\",\"alb.ingress.kubernetes.io/subnets\":\"subnet-000f2b20b0ebaef37,subnet-0b2cce92f08506a9a,subnet-0571b340c9f28375c\"},\"tls\":{\"enabled\":false},\"rules\":[{\"http\":{\"paths\":[{\"path\":\"/*\",\"backend\":{\"serviceName\":\"nexus3-sonatype-nexus\",\"servicePort\":8081}}]}}]},\"serviceAccount\":{\"create\":false}}"
+          ]
+        ]
+      },
+    });
+  });
+
 });
 
 function initializeStackWithContextsAndEnvs(app: cdk.App, stack: cdk.Stack, 
