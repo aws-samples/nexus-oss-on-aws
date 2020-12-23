@@ -36,14 +36,6 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       }
     });
 
-    const domainNameParameter = new cdk.CfnParameter(this, 'DomainName', {
-      type: 'String',
-      allowedPattern: '(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]',
-      description: 'The domain name of Nexus OSS deployment, such as mydomain.com.',
-      constraintDescription: 'validate domain name without protocol',
-    });
-    const domainName = domainNameParameter.valueAsString;
-
     const constraintDescription = '- at least 8 characters\n- must contain at least 1 uppercase letter, 1 lowercase letter, and 1 number\n- Can contain special characters';
     const adminInitPassword = new cdk.CfnParameter(this, 'NexusAdminInitPassword', {
       type: 'String',
@@ -53,31 +45,44 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       constraintDescription,
       noEcho: true,
     });
-    
     var hostedZone = null;
     var certificate: certmgr.Certificate | undefined;
-    const r53Domain = this.node.tryGetContext('r53Domain');
-    if (r53Domain) {
-      hostedZone = route53.HostedZone.fromLookup(this, 'R53HostedZone', {
-        domainName: r53Domain,
-        privateZone: false,
+    var domainName: string | undefined;
+
+    const internalALB = (/true/i).test(this.node.tryGetContext('internalALB'));
+    const r53Domain = internalALB ? undefined : this.node.tryGetContext('r53Domain');
+
+    if (!internalALB) {
+      const domainNameParameter = new cdk.CfnParameter(this, 'DomainName', {
+        type: 'String',
+        allowedPattern: '(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]',
+        description: 'The domain name of Nexus OSS deployment, such as mydomain.com.',
+        constraintDescription: 'validate domain name without protocol',
       });
-      assert.ok(hostedZone != null, 'Can not find your hosted zone.');
-      certificate = new certmgr.Certificate(this, `SSLCertificate`, {
-        domainName: domainName,
-        validation: certmgr.CertificateValidation.fromDns(hostedZone),
-      });
-    } else if ((/true/i).test(this.node.tryGetContext('enableR53HostedZone'))) {
-      const r53HostedZoneIdParameter = new cdk.CfnParameter(this, 'R53HostedZoneId', {
-        type: targetRegion.startsWith('cn-') ? 'String' : 'AWS::Route53::HostedZone::Id',
-        description: 'The hosted zone ID of given domain name in Route 53.',
-      });
-      hostedZone = route53.HostedZone.fromHostedZoneId(this, 'ImportedHostedZone', r53HostedZoneIdParameter.valueAsString);
-      certificate = new certmgr.Certificate(this, `SSLCertificate`, {
-        domainName: domainName,
-        validation: certmgr.CertificateValidation.fromDns(hostedZone),
-      });
+      domainName = domainNameParameter.valueAsString;
+      if (r53Domain) {
+        hostedZone = route53.HostedZone.fromLookup(this, 'R53HostedZone', {
+          domainName: r53Domain,
+          privateZone: false,
+        });
+        assert.ok(hostedZone != null, 'Can not find your hosted zone.');
+        certificate = new certmgr.Certificate(this, `SSLCertificate`, {
+          domainName: domainName,
+          validation: certmgr.CertificateValidation.fromDns(hostedZone),
+        });
+      } else if ((/true/i).test(this.node.tryGetContext('enableR53HostedZone'))) {
+        const r53HostedZoneIdParameter = new cdk.CfnParameter(this, 'R53HostedZoneId', {
+          type: targetRegion.startsWith('cn-') ? 'String' : 'AWS::Route53::HostedZone::Id',
+          description: 'The hosted zone ID of given domain name in Route 53.',
+        });
+        hostedZone = route53.HostedZone.fromHostedZoneId(this, 'ImportedHostedZone', r53HostedZoneIdParameter.valueAsString);
+        certificate = new certmgr.Certificate(this, `SSLCertificate`, {
+          domainName: domainName,
+          validation: certmgr.CertificateValidation.fromDns(hostedZone),
+        });
+      }
     }
+
     let vpc!: ec2.IVpc;
     const createNewVpc: boolean = this.node.tryGetContext('createNewVpc') ?? false;
     if (createNewVpc) {
@@ -287,8 +292,8 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       'alb.ingress.kubernetes.io/healthcheck-path': healthcheckPath,
       'alb.ingress.kubernetes.io/healthcheck-port': nexusPort,
       'alb.ingress.kubernetes.io/listen-ports': '[{"HTTP": 80}]',
-      'alb.ingress.kubernetes.io/scheme': 'internet-facing',
-      'alb.ingress.kubernetes.io/inbound-cidrs': '0.0.0.0/0',
+      'alb.ingress.kubernetes.io/scheme': internalALB ? 'internal' : 'internet-facing',
+      'alb.ingress.kubernetes.io/inbound-cidrs': internalALB ? vpc.vpcCidrBlock : '0.0.0.0/0',
       'alb.ingress.kubernetes.io/auth-type': 'none',
       'alb.ingress.kubernetes.io/target-type': 'ip',
       'kubernetes.io/ingress.class': 'alb',
@@ -561,12 +566,16 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       }
     }
 
-    new cdk.CfnOutput(this, 'nexus3-s3-bucket-blobstore', {
+    new cdk.CfnOutput(this, 'nexus-oss-s3-bucket-blobstore', {
       value: `${nexusBlobBucket.bucketName}`,
-      description: 'S3 Bucket created for Nexus3 S3 Blobstore'
+      description: 'S3 Bucket created for Nexus OSS Blobstore'
+    });
+    new cdk.CfnOutput(this, 'nexus-oss-alb-domain', {
+      value: `${albAddress.value}`,
+      description: 'load balancer domain of Nexus OSS'
     });
 
-    this.templateOptions.description = `(SO8020) - Sonatype Nexus OSS on AWS. Template version ${pjson.version}`;
+    this.templateOptions.description = `(SO8020) - Sonatype Nexus Repository OSS on AWS. Template version ${pjson.version}`;
   }
 
   /**

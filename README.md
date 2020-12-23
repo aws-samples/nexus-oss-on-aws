@@ -23,7 +23,7 @@ npm run init
 ```
 
 ### Deployment
-#### Deploy with mandatory parameters
+#### Deploy with custom domain
 ```
 npm run deploy -- --parameters NexusAdminInitPassword=<init admin password of nexus3>  --parameters DomainName=<the hostname of nexus3 deployment>
 ```
@@ -39,13 +39,18 @@ npm run deploy -- --parameters NexusAdminInitPassword=<init admin password of ne
 
 #### Deploy to a new created VPC
 ```
-npm run deploy -- <mandatory options> -c createNewVpc=true
+npm run deploy -- <other options> -c createNewVpc=true
+```
+
+#### Deploy with internal load balancer
+```
+npm run deploy -- -c internalALB=true
 ```
 
 #### Deploy to China regions
 Due to AWS load balancer has different policy requirement for partitions, you need speicfy the target region info via context `region` to pick the corresponding IAM policies.
 ```
-npm run deploy -- <mandatory options> -c region=cn-north-1
+npm run deploy -- <other options> -c region=cn-north-1
 ```
 
 ### Init admin password
@@ -57,7 +62,7 @@ You must specify the default init admin password when deploying this solution. T
 ### Auto configuration
 Nexus3 supports using [script][nexus3-script] to configure the Nexus3 service, for example, BlobStores, Repositories and so on. The script feature is disabled by default since Nexus3 3.21.2. You can opt-in auto configuration feature of this solution like below that will enable script feature of Nexus.
 ```
-npm run deploy -- <mandatory options> -c enableAutoConfigured=true
+npm run deploy -- <other options> -c enableAutoConfigured=true
 ```
 It would automatically configure the fresh provisioning Nexus3 with below changes,
 
