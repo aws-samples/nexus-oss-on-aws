@@ -1,6 +1,6 @@
-# Sonatype Nexus OSS on Amazon EKS
+# Sonatype Nexus Repository OSS on Amazon EKS
 
-Deploy Sonatype Nexus3 via Helm on EKS.
+Deploy Sonatype Nexus Repository OSS via Helm on EKS.
 
 - Use EFS via EFS CSI driver, PV and PVC as Nexus3 data storage
 - Create a dedicated S3 bucket as Nexus3 blobstore
@@ -77,6 +77,15 @@ npm run cleanup
 ```
 **NOTE**: you still need manually delete the EFS file system and S3 bucket created by this solution. Those storage might contain your data, be caution before deleting them.
 
+## Quick deployment
+It's [an official solution][nexus-oss-on-aws-solution] of AWS China regions. You can quickly deploy this solution to below regions via CloudFormation,
+
+Region name | Region code | Launch
+--- | --- | ---
+AWS China(Beijing) Region | cn-north-1 | [![Launch Stack](LaunchStack.jpg)](https://console.amazonaws.cn/cloudformation/home?region=cn-north-1#/stacks/new?stackName=NexusOSS&templateURL=https://aws-gcr-solutions.s3.cn-north-1.amazonaws.com.cn/nexus-oss-on-aws/v1.0.0/SonatypeNexus3OnEKS.template.json)
+AWS China(Ningxia) Region | cn-northwest-1 | [![Launch Stack](LaunchStack.jpg)](https://console.amazonaws.cn/cloudformation/home?region=cn-northwest-1#/stacks/new?stackName=NexusOSS&templateURL=https://aws-gcr-solutions.s3.cn-north-1.amazonaws.com.cn/nexus-oss-on-aws/v1.0.0/SonatypeNexus3OnEKS.template.json)
+
+
 ## Security
 
 See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more information.
@@ -97,3 +106,4 @@ Also this application uses below open source projects,
 - [nexus3-cli](https://gitlab.com/thiagocsf/nexus3-cli)
 
 [nexus3-script]: https://help.sonatype.com/repomanager3/rest-and-integration-api/script-api
+[nexus-oss-on-aws-solution]: https://www.amazonaws.cn/solutions/nexusoss-on-aws/
