@@ -82,8 +82,9 @@ It's [an official solution][nexus-oss-on-aws-solution] of AWS China regions. You
 
 Region name | Region code | Launch
 --- | --- | ---
-AWS China(Beijing) Region | cn-north-1 | [![Launch Stack](LaunchStack.jpg)](https://console.amazonaws.cn/cloudformation/home?region=cn-north-1#/stacks/new?stackName=NexusOSS&templateURL=https://aws-gcr-solutions.s3.cn-north-1.amazonaws.com.cn/nexus-oss-on-aws/v1.0.0/SonatypeNexus3OnEKS.template.json)
-AWS China(Ningxia) Region | cn-northwest-1 | [![Launch Stack](LaunchStack.jpg)](https://console.amazonaws.cn/cloudformation/home?region=cn-northwest-1#/stacks/new?stackName=NexusOSS&templateURL=https://aws-gcr-solutions.s3.cn-north-1.amazonaws.com.cn/nexus-oss-on-aws/v1.0.0/SonatypeNexus3OnEKS.template.json)
+Global regions(switch to the region you want to deploy) | us-east-1(default) | [![Launch Stack](LaunchStack.jpg)](https://us-east-1.console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/create/template?stackName=NexusOSS&templateURL=https://aws-gcr-solutions.s3.amazonaws.com/nexus-oss-on-aws/latest/nexus-repository-oss-on-aws.template.json)
+AWS China(Beijing) Region | cn-north-1 | [![Launch Stack](LaunchStack.jpg)](https://console.amazonaws.cn/cloudformation/home?region=cn-north-1#/stacks/new?stackName=NexusOSS&templateURL=https://aws-gcr-solutions.s3.cn-north-1.amazonaws.com.cn/nexus-oss-on-aws/latest/nexus-repository-oss-on-aws-cn.template.json)
+AWS China(Ningxia) Region | cn-northwest-1 | [![Launch Stack](LaunchStack.jpg)](https://console.amazonaws.cn/cloudformation/home?region=cn-northwest-1#/stacks/new?stackName=NexusOSS&templateURL=https://aws-gcr-solutions.s3.cn-north-1.amazonaws.com.cn/nexus-oss-on-aws/latest/nexus-repository-oss-on-aws-cn.template.json)
 
 
 ## Security
