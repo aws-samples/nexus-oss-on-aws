@@ -39,7 +39,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
     const constraintDescription = '- at least 8 characters\n- must contain at least 1 uppercase letter, 1 lowercase letter, and 1 number\n- Can contain special characters';
     const adminInitPassword = new cdk.CfnParameter(this, 'NexusAdminInitPassword', {
       type: 'String',
-      allowedPattern: '^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[a-zA-Z]).{8,}$',
+      allowedPattern: '^(?=.*\\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[a-zA-Z]).{8,}$',
       minLength: 8,
       description: `The admin init password of Nexus3. ${constraintDescription}`,
       constraintDescription,
