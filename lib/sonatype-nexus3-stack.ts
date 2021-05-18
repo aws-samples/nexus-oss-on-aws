@@ -11,6 +11,7 @@ import * as logs from '@aws-cdk/aws-logs';
 import * as path from 'path';
 import * as s3 from '@aws-cdk/aws-s3';
 import * as route53 from '@aws-cdk/aws-route53';
+import { KubectlLayer } from '@aws-cdk/lambda-layer-kubectl';
 import * as pjson from '../package.json';
 
 export class SonatypeNexus3Stack extends cdk.Stack {
@@ -25,13 +26,10 @@ export class SonatypeNexus3Stack extends cdk.Stack {
         aws: {
           nexus: 'quay.io/travelaudience/docker-nexus',
           nexusProxy: 'quay.io/travelaudience/docker-nexus-proxy',
-          // see https://github.com/aws/aws-cdk/blob/60c782fe173449ebf912f509de7db6df89985915/packages/%40aws-cdk/aws-eks/lib/kubectl-layer.ts#L6
-          kubectlLayerAppid: 'arn:aws:serverlessrepo:us-east-1:903779448426:applications/lambda-layer-kubectl',
         },
         'aws-cn': {
           nexus: '048912060910.dkr.ecr.cn-northwest-1.amazonaws.com.cn/quay/travelaudience/docker-nexus',
           nexusProxy: '048912060910.dkr.ecr.cn-northwest-1.amazonaws.com.cn/quay/travelaudience/docker-nexus-proxy',
-          kubectlLayerAppid: 'arn:aws-cn:serverlessrepo:cn-north-1:487369736442:applications/lambda-layer-kubectl',
         },
       }
     });
@@ -104,9 +102,6 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       assumedBy: new iam.AccountRootPrincipal(),
     });
 
-    const kubectlLayer = new eks.KubectlLayer(this, 'KubeLayer', {
-      applicationId: partitionMapping.findInMap(cdk.Aws.PARTITION, 'kubectlLayerAppid'),
-    });
     const isFargetEnabled = (this.node.tryGetContext('enableFarget') || 'false').toLowerCase() === 'true';
     const cluster = new eks.Cluster(this, 'NexusCluster', {
       vpc,
@@ -114,7 +109,6 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       mastersRole: clusterAdmin,
       version: eks.KubernetesVersion.V1_16,
       coreDnsComputeType: isFargetEnabled ? eks.CoreDnsComputeType.FARGATE : eks.CoreDnsComputeType.EC2,
-      kubectlLayer,
     });
 
     const nexusBlobBucket = new s3.Bucket(this, `nexus3-blobstore`, {
@@ -405,7 +399,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       environment: cluster.kubectlEnvironment,
       logRetention: logs.RetentionDays.ONE_MONTH,
       timeout: cdk.Duration.minutes(15),
-      layers: [ kubectlLayer ],
+      layers: [ new KubectlLayer(this, 'KubectlLayer') ],
       vpc: vpc,
       securityGroups: cluster.kubectlSecurityGroup ? [cluster.kubectlSecurityGroup] : undefined,
       vpcSubnets: cluster.kubectlPrivateSubnets ? { subnets: cluster.kubectlPrivateSubnets } : undefined,
