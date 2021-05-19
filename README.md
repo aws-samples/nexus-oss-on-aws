@@ -19,38 +19,39 @@ Deploy Sonatype Nexus Repository OSS via Helm on EKS.
 - Has default VPC with public and private subnets cross two available zones at least, NAT gateway also is required
 - Install dependencies of app  
 ```
-npm run init
+yarn install --check-files --frozen-lockfile
+npx projen
 ```
 
 ### Deployment
 #### Deploy with custom domain
 ```
-npm run deploy -- --parameters NexusAdminInitPassword=<init admin password of nexus3>  --parameters DomainName=<the hostname of nexus3 deployment>
+npx cdk deploy --parameters NexusAdminInitPassword=<init admin password of nexus3>  --parameters DomainName=<the hostname of nexus3 deployment>
 ```
 
 #### Deploy with Route53 managed domain name
 ```
-npm run deploy -- --parameters NexusAdminInitPassword=<init admin password of nexus3> --parameters DomainName=<nexus.mydomain.com> -c r53Domain=<mydomain.com>
+npx cdk deploy -- --parameters NexusAdminInitPassword=<init admin password of nexus3> --parameters DomainName=<nexus.mydomain.com> -c r53Domain=<mydomain.com>
 ```
 or
 ```
-npm run deploy -- --parameters NexusAdminInitPassword=<init admin password of nexus3> --parameters DomainName=<nexus.mydomain.com> --parameters R53HostedZoneId=<id of route53 hosted zone> -c enableR53HostedZone=true
+npx cdk deploy -- --parameters NexusAdminInitPassword=<init admin password of nexus3> --parameters DomainName=<nexus.mydomain.com> --parameters R53HostedZoneId=<id of route53 hosted zone> -c enableR53HostedZone=true
 ```
 
 #### Deploy to a new created VPC
 ```
-npm run deploy -- <other options> -c createNewVpc=true
+npx cdk deploy -- <other options> -c createNewVpc=true
 ```
 
 #### Deploy with internal load balancer
 ```
-npm run deploy -- -c internalALB=true
+npx cdk deploy -- -c internalALB=true
 ```
 
 #### Deploy to China regions
 Due to AWS load balancer has different policy requirement for partitions, you need speicfy the target region info via context `region` to pick the corresponding IAM policies.
 ```
-npm run deploy -- <other options> -c region=cn-north-1
+npx cdk deploy -- <other options> -c region=cn-north-1
 ```
 
 ### Init admin password
@@ -62,7 +63,7 @@ You must specify the default init admin password when deploying this solution. T
 ### Auto configuration
 Nexus3 supports using [script][nexus3-script] to configure the Nexus3 service, for example, BlobStores, Repositories and so on. The script feature is disabled by default since Nexus3 3.21.2. You can opt-in auto configuration feature of this solution like below that will enable script feature of Nexus.
 ```
-npm run deploy -- <other options> -c enableAutoConfigured=true
+npx cdk deploy -- <other options> -c enableAutoConfigured=true
 ```
 It would automatically configure the fresh provisioning Nexus3 with below changes,
 
@@ -73,7 +74,7 @@ It would automatically configure the fresh provisioning Nexus3 with below change
 ### How to clean
 Run below command to clean the deployment or delete the `SonatypeNexus3OnEKS` stack via CloudFormation console.
 ```
-npm run cleanup
+npx cdk destroy
 ```
 **NOTE**: you still need manually delete the EFS file system and S3 bucket created by this solution. Those storage might contain your data, be caution before deleting them.
 
