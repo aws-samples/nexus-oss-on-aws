@@ -1,18 +1,20 @@
-import * as cdk from '@aws-cdk/core';
-const assert = require('assert').strict;
-import * as certmgr from "@aws-cdk/aws-certificatemanager";
-import * as eks from '@aws-cdk/aws-eks';
+/* eslint @typescript-eslint/no-require-imports: "off" */
+import * as path from 'path';
+import * as certmgr from '@aws-cdk/aws-certificatemanager';
 import * as ec2 from '@aws-cdk/aws-ec2';
 import * as efs from '@aws-cdk/aws-efs';
+import * as eks from '@aws-cdk/aws-eks';
 import * as iam from '@aws-cdk/aws-iam';
 import * as lambda from '@aws-cdk/aws-lambda';
 import * as lambda_python from '@aws-cdk/aws-lambda-python';
 import * as logs from '@aws-cdk/aws-logs';
-import * as path from 'path';
-import * as s3 from '@aws-cdk/aws-s3';
 import * as route53 from '@aws-cdk/aws-route53';
+import * as s3 from '@aws-cdk/aws-s3';
+import * as cdk from '@aws-cdk/core';
 import { KubectlLayer } from '@aws-cdk/lambda-layer-kubectl';
-import * as pjson from '../package.json';
+import * as pjson from '../../package.json';
+
+const assert = require('assert').strict;
 
 export class SonatypeNexus3Stack extends cdk.Stack {
 
@@ -23,7 +25,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
 
     const partitionMapping = new cdk.CfnMapping(this, 'PartitionMapping', {
       mapping: {
-        aws: {
+        'aws': {
           nexus: 'quay.io/travelaudience/docker-nexus',
           nexusProxy: 'quay.io/travelaudience/docker-nexus-proxy',
         },
@@ -31,7 +33,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
           nexus: '048912060910.dkr.ecr.cn-northwest-1.amazonaws.com.cn/quay/travelaudience/docker-nexus',
           nexusProxy: '048912060910.dkr.ecr.cn-northwest-1.amazonaws.com.cn/quay/travelaudience/docker-nexus-proxy',
         },
-      }
+      },
     });
 
     const constraintDescription = '- at least 8 characters\n- must contain at least 1 uppercase letter, 1 lowercase letter, and 1 number\n- Can contain special characters';
@@ -64,7 +66,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
           privateZone: false,
         });
         assert.ok(hostedZone != null, 'Can not find your hosted zone.');
-        certificate = new certmgr.Certificate(this, `SSLCertificate`, {
+        certificate = new certmgr.Certificate(this, 'SSLCertificate', {
           domainName: domainName,
           validation: certmgr.CertificateValidation.fromDns(hostedZone),
         });
@@ -74,7 +76,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
           description: 'The hosted zone ID of given domain name in Route 53.',
         });
         hostedZone = route53.HostedZone.fromHostedZoneId(this, 'ImportedHostedZone', r53HostedZoneIdParameter.valueAsString);
-        certificate = new certmgr.Certificate(this, `SSLCertificate`, {
+        certificate = new certmgr.Certificate(this, 'SSLCertificate', {
           domainName: domainName,
           validation: certmgr.CertificateValidation.fromDns(hostedZone),
         });
@@ -87,8 +89,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       vpc = new ec2.Vpc(this, 'NexusVpc', {
         maxAzs: 2,
       });
-    }
-    else {
+    } else {
       vpc = ec2.Vpc.fromLookup(this, 'vpc', {
         isDefault: true,
       });
@@ -111,7 +112,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       coreDnsComputeType: isFargetEnabled ? eks.CoreDnsComputeType.FARGATE : eks.CoreDnsComputeType.EC2,
     });
 
-    const nexusBlobBucket = new s3.Bucket(this, `nexus3-blobstore`, {
+    const nexusBlobBucket = new s3.Bucket(this, 'nexus3-blobstore', {
       removalPolicy: cdk.RemovalPolicy.RETAIN,
       encryption: s3.BucketEncryption.S3_MANAGED,
     });
@@ -137,7 +138,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       ],
       resources: [
         nexusBlobBucket.bucketArn,
-        nexusBlobBucket.arnForObjects('*')
+        nexusBlobBucket.arnForObjects('*'),
       ],
     });
 
@@ -148,9 +149,9 @@ export class SonatypeNexus3Stack extends cdk.Stack {
             namespace: 'kube-system',
             labels: {
               'k8s-app': 'kube-dns',
-            }
-          }
-        ]
+            },
+          },
+        ],
       });
     }
 
@@ -160,7 +161,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       minSize: 1,
       maxSize: 3,
       labels: {
-        usage: 'nexus3'
+        usage: 'nexus3',
       },
     });
     // Have to bind IAM role to node due to Nexus3 uses old AWS Java SDK not supporting IRSA
@@ -183,7 +184,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
     const yaml = require('js-yaml');
 
     const policyJson = request('GET', awsControllerPolicyUrl).getBody();
-    ((JSON.parse(policyJson))['Statement'] as []).forEach((statement, idx, array) => {
+    ((JSON.parse(policyJson)).Statement as []).forEach((statement, _idx, _array) => {
       albServiceAccount.addToPolicy(iam.PolicyStatement.fromJson(statement));
     });
     const awsLoadBalancerControllerChart = cluster.addHelmChart('AWSLoadBalancerController', {
@@ -240,7 +241,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
         metadata: {
           name: efsClass,
         },
-        provisioner: 'efs.csi.aws.com'
+        provisioner: 'efs.csi.aws.com',
       });
     efsStorageClass.node.addDependency(efsCSI);
     const efsPVName = 'efs-pv';
@@ -248,23 +249,23 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       apiVersion: 'v1',
       kind: 'PersistentVolume',
       metadata: {
-        name: efsPVName
+        name: efsPVName,
       },
       spec: {
         capacity: {
-          storage: '1000Gi'
+          storage: '1000Gi',
         },
         volumeMode: 'Filesystem',
         accessModes: [
-          'ReadWriteMany'
+          'ReadWriteMany',
         ],
         persistentVolumeReclaimPolicy: 'Retain',
         storageClassName: efsClass,
         csi: {
           driver: 'efs.csi.aws.com',
           volumeHandle: fileSystem.fileSystemId,
-        }
-      }
+        },
+      },
     });
     efsPV.node.addDependency(fileSystem);
     efsPV.node.addDependency(efsStorageClass);
@@ -302,11 +303,11 @@ export class SonatypeNexus3Stack extends cdk.Stack {
               backend: {
                 serviceName: `${nexus3ChartName}-sonatype-nexus`,
                 servicePort: nexusPort,
-              }
-            }
-          ]
-        }
-      }
+              },
+            },
+          ],
+        },
+      },
     ];
     var externalDNSResource: cdk.Construct;
     if (certificate) {
@@ -326,17 +327,17 @@ export class SonatypeNexus3Stack extends cdk.Stack {
               backend: {
                 serviceName: 'ssl-redirect',
                 servicePort: 'use-annotation',
-              }
+              },
             },
             {
               path: '/*',
               backend: {
                 serviceName: `${nexus3ChartName}-sonatype-nexus`,
                 servicePort: nexusPort,
-              }
-            }
-          ]
-        }
+              },
+            },
+          ],
+        },
       });
 
       // install external dns
@@ -369,14 +370,14 @@ export class SonatypeNexus3Stack extends cdk.Stack {
         request('GET', `${awsControllerBaseResourceBaseUrl}/examples/external-dns.yaml`)
           .getBody('utf-8').replace('external-dns-test.my-org.com', r53Domain ?? '')
           .replace('my-identifier', 'nexus3'))
-        .filter((res: any) => { return res['kind'] != 'ServiceAccount' })
+        .filter((res: any) => { return res.kind != 'ServiceAccount'; })
         .map((res: any) => {
-          if (res['kind'] === 'Deployment') {
-            res['spec']['template']['spec']['containers'][0]['env'] = [
+          if (res.kind === 'Deployment') {
+            res.spec.template.spec.containers[0].env = [
               {
                 name: 'AWS_REGION',
                 value: cdk.Aws.REGION,
-              }
+              },
             ];
           }
           return res;
@@ -399,7 +400,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       environment: cluster.kubectlEnvironment,
       logRetention: logs.RetentionDays.ONE_MONTH,
       timeout: cdk.Duration.minutes(15),
-      layers: [ new KubectlLayer(this, 'KubectlLayer') ],
+      layers: [new KubectlLayer(this, 'KubectlLayer')],
       vpc: vpc,
       securityGroups: cluster.kubectlSecurityGroup ? [cluster.kubectlSecurityGroup] : undefined,
       vpcSubnets: cluster.kubectlPrivateSubnets ? { subnets: cluster.kubectlPrivateSubnets } : undefined,
@@ -423,7 +424,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
         JsonPath: '.status.loadBalancer.ingress[0].hostname',
         TimeoutSeconds: cdk.Duration.minutes(6).toSeconds(),
         Release: nexus3ChartName,
-    },
+      },
     });
     neuxs3PurgeCR.node.addDependency(efsPV);
     neuxs3PurgeCR.node.addDependency(awsLoadBalancerControllerChart);
@@ -441,7 +442,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
         resources: {
           requests: {
             memory: '4800Mi',
-          }
+          },
         },
         livenessProbe: {
           path: healthcheckPath,
@@ -456,7 +457,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       persistence: {
         enabled: true,
         storageClass: efsClass,
-        accessMode: 'ReadWriteMany'
+        accessMode: 'ReadWriteMany',
       },
       nexusBackup: {
         enabled: false,
@@ -492,17 +493,17 @@ export class SonatypeNexus3Stack extends cdk.Stack {
         config: {
           enabled: true,
           data: {
-            'nexus.properties': 'nexus.scripts.allowCreation=true'
-          }
+            'nexus.properties': 'nexus.scripts.allowCreation=true',
+          },
         },
         deployment: {
           additionalVolumeMounts: [
             {
               mountPath: '/nexus-data/etc/nexus.properties',
               subPath: 'nexus.properties',
-              name: 'sonatype-nexus-conf'
-            }
-          ]
+              name: 'sonatype-nexus-conf',
+            },
+          ],
         },
       };
     }
@@ -531,7 +532,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       jsonPath: '.status.loadBalancer.ingress[0].hostname',
     });
     albAddress.node.addDependency(nexus3Chart);
-    
+
     if (enableAutoConfigured) {
       const nexusEndpointHostname = `http://${albAddress.value}`;
       if (nexusEndpointHostname) {
@@ -561,11 +562,11 @@ export class SonatypeNexus3Stack extends cdk.Stack {
 
     new cdk.CfnOutput(this, 'nexus-oss-s3-bucket-blobstore', {
       value: `${nexusBlobBucket.bucketName}`,
-      description: 'S3 Bucket created for Nexus OSS Blobstore'
+      description: 'S3 Bucket created for Nexus OSS Blobstore',
     });
     new cdk.CfnOutput(this, 'nexus-oss-alb-domain', {
       value: `${albAddress.value}`,
-      description: 'load balancer domain of Nexus OSS'
+      description: 'load balancer domain of Nexus OSS',
     });
 
     this.templateOptions.description = `(SO8020) - Sonatype Nexus Repository OSS on AWS. Template version ${pjson.version}`;
@@ -643,8 +644,8 @@ export class SonatypeNexus3Stack extends cdk.Stack {
         'cn-northwest-1': {
           2: '961992271922',
         },
-      }
-    }); 
+      },
+    });
     return `${albImageMapping.findInMap(cdk.Aws.REGION, '2')}.dkr.ecr.${cdk.Aws.REGION}.${cdk.Aws.URL_SUFFIX}/amazon/aws-load-balancer-controller`;
   }
 
