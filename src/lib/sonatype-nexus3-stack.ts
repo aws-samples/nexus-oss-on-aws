@@ -170,6 +170,24 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       statements: [s3BucketPolicy, s3ObjectPolicy],
     }));
 
+    const request = require('sync-request');
+    const yaml = require('js-yaml');
+
+    // install SSM agent as daemonset
+    nodeGroup.role.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonSSMManagedInstanceCore'));
+
+    var ssmManifests = request('GET', 'https://raw.githubusercontent.com/aws-samples/ssm-agent-daemonset-installer/541da0a68a96d5b2ce184724f3d35d22d9ac7236/setup.yaml')
+      .getBody('utf-8');
+
+    if (targetRegion.startsWith('cn-')) {
+      ssmManifests = ssmManifests.replace('https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/linux_amd64/amazon-ssm-agent.rpm',
+        'https://s3.cn-north-1.amazonaws.com.cn/amazon-ssm-cn-north-1/latest/linux_amd64/amazon-ssm-agent.rpm')
+        .replace('jicowan/ssm-agent-installer:1.2', '048912060910.dkr.ecr.cn-northwest-1.amazonaws.com.cn/dockerhub/jicowan/ssm-agent-installer:1.2')
+        .replace('gcr.io/google-containers/pause:2.0', '048912060910.dkr.ecr.cn-northwest-1.amazonaws.com.cn/gcr/google-containers/pause:2.0');
+    }
+    const ssmInstallerResources = yaml.safeLoadAll(ssmManifests);
+    cluster.addManifest('ssm-agent-daemonset', ...ssmInstallerResources);
+
     // install AWS load balancer via Helm charts
     const awsLoadBalancerControllerVersion = 'v2.1.0';
     const awsControllerBaseResourceBaseUrl = `https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/${awsLoadBalancerControllerVersion}/docs`;
@@ -179,9 +197,6 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       name: 'aws-load-balancer-controller',
       namespace: albNamespace,
     });
-
-    const request = require('sync-request');
-    const yaml = require('js-yaml');
 
     const policyJson = request('GET', awsControllerPolicyUrl).getBody();
     ((JSON.parse(policyJson)).Statement as []).forEach((statement, _idx, _array) => {
