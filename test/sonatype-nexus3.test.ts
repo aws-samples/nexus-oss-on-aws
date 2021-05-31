@@ -138,6 +138,48 @@ describe('Nexus OSS stack', () => {
     });
   });
 
+  test('eks cluster is created with proper configuration', () => {
+    expect(stack).toHaveResourceLike('Custom::AWSCDK-EKS-Cluster', {
+      Config: {
+        version: {
+          Ref: 'KubernetesVersion',
+        },
+        roleArn: {
+          'Fn::GetAtt': [
+            'NexusClusterRole08D74DFC',
+            'Arn',
+          ],
+        },
+        resourcesVpcConfig: {
+          subnetIds: [
+            {
+              Ref: 'NexusVpcPublicSubnet1SubnetE9292C67',
+            },
+            {
+              Ref: 'NexusVpcPublicSubnet2Subnet4D9CEF81',
+            },
+            {
+              Ref: 'NexusVpcPrivateSubnet1Subnet10A775DD',
+            },
+            {
+              Ref: 'NexusVpcPrivateSubnet2Subnet09C60382',
+            },
+          ],
+          securityGroupIds: [
+            {
+              'Fn::GetAtt': [
+                'NexusClusterControlPlaneSecurityGroupBC441028',
+                'GroupId',
+              ],
+            },
+          ],
+          endpointPublicAccess: true,
+          endpointPrivateAccess: true,
+        },
+      },
+    });
+  });
+
   test('ssl certificate with R53 hosted zone when disabling R53 hosted zone', () => {
     const context = {
       enableR53HostedZone: false,
@@ -280,7 +322,7 @@ describe('Nexus OSS stack', () => {
     expect(stack).toHaveResourceLike('Custom::AWSCDK-EKS-HelmChart', {
       Release: 'aws-load-balancer-controller',
       Chart: 'aws-load-balancer-controller',
-      Version: '1.1.0',
+      Version: '1.2.0',
       Repository: 'https://aws.github.io/eks-charts',
     });
   });
@@ -314,6 +356,28 @@ describe('Nexus OSS stack', () => {
     });
   });
 
+  test('custom purge lambda is expected', () => {
+    // must use runtime py_37 for awscli 1.x support
+    // must have env 'AWS_STS_REGIONAL_ENDPOINTS' for some regions, such as ap-east-1
+    expect(stack).toHaveResourceLike('AWS::Lambda::Function', {
+      Environment: {
+        Variables: {
+          AWS_STS_REGIONAL_ENDPOINTS: 'regional',
+        },
+      },
+      Handler: 'index.handler',
+      Layers: [
+        {
+          Ref: 'AwsCliLayerF44AAF94',
+        },
+        {
+          Ref: 'KubectlLayer600207B5',
+        },
+      ],
+      Runtime: 'python3.7',
+    });
+  });
+
   test('correct dependencies for deleting stack', () => {
     // retain custom data after deleting stack
     expect(stack).toHaveResourceLike('AWS::EFS::FileSystem', {
@@ -343,7 +407,7 @@ describe('Nexus OSS stack', () => {
       DeletionPolicy: 'Delete',
     }, ResourcePart.CompleteDefinition);
 
-    expect(stack).toHaveResourceLike('Custom::Neuxs3-Purge', {
+    expect(stack).toHaveResourceLike('Custom::Nexus3-Purge', {
       Properties: {
         ClusterName: {
           Ref: 'NexusCluster2168A4B1',
@@ -373,7 +437,7 @@ describe('Nexus OSS stack', () => {
         Chart: 'sonatype-nexus',
       },
       DependsOn: [
-        'Neuxs3PurgeCR',
+        'Nexus3PurgeCR',
         'NexusClusterKubectlReadyBarrier6571FFC0',
         'NexusClustermanifestexternaldns8C93099A',
         'NexusClustersonatypenexus3ConditionJsonBA718515',

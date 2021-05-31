@@ -75,6 +75,10 @@ def handler(event, context):
         cfn_send(event, context, CFN_SUCCESS, physicalResourceId=physical_id)
     except KeyError as e:
         cfn_error(f"invalid request. Missing key {str(e)}")
+    except subprocess.CalledProcessError as exc:
+        errMsg = f'the cmd {exc.cmd} returns {exc.returncode} with stdout {exc.output} and stderr {exc.stderr}'
+        logger.error(errMsg)
+        cfn_error(errMsg)
     except Exception as e:
         logger.exception(e)
         cfn_error(str(e))
