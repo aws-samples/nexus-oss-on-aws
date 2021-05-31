@@ -4,6 +4,7 @@ const project = new AwsCdkTypeScriptApp({
   defaultReleaseBranch: 'master',
   name: 'sonatype-nexus3',
   appEntrypoint: 'sonatype-nexus3.ts',
+  cdkVersionPinning: true,
   cdkDependencies: [
     '@aws-cdk/aws-certificatemanager',
     '@aws-cdk/aws-ec2',
@@ -15,6 +16,7 @@ const project = new AwsCdkTypeScriptApp({
     '@aws-cdk/aws-logs',
     '@aws-cdk/aws-s3',
     '@aws-cdk/aws-route53',
+    '@aws-cdk/lambda-layer-awscli',
     '@aws-cdk/lambda-layer-kubectl',
     '@aws-cdk/cloud-assembly-schema',
     '@aws-cdk/cx-api',
@@ -60,4 +62,7 @@ const project = new AwsCdkTypeScriptApp({
 project.tasks._tasks.synth._steps[0] = {
   exec: 'cdk synth -c createNewVpc=true',
 };
+project.addFields({
+  version: '1.1.0-mainline',
+});
 project.synth();

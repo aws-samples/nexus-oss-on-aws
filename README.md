@@ -31,27 +31,35 @@ npx cdk deploy --parameters NexusAdminInitPassword=<init admin password of nexus
 
 #### Deploy with Route53 managed domain name
 ```
-npx cdk deploy -- --parameters NexusAdminInitPassword=<init admin password of nexus3> --parameters DomainName=<nexus.mydomain.com> -c r53Domain=<mydomain.com>
+npx cdk deploy --parameters NexusAdminInitPassword=<init admin password of nexus3> --parameters DomainName=<nexus.mydomain.com> -c r53Domain=<mydomain.com>
 ```
 or
 ```
-npx cdk deploy -- --parameters NexusAdminInitPassword=<init admin password of nexus3> --parameters DomainName=<nexus.mydomain.com> --parameters R53HostedZoneId=<id of route53 hosted zone> -c enableR53HostedZone=true
+npx cdk deploy --parameters NexusAdminInitPassword=<init admin password of nexus3> --parameters DomainName=<nexus.mydomain.com> --parameters R53HostedZoneId=<id of route53 hosted zone> -c enableR53HostedZone=true
 ```
 
 #### Deploy to a new created VPC
 ```
-npx cdk deploy -- <other options> -c createNewVpc=true
+npx cdk deploy <other options> -c createNewVpc=true
 ```
 
 #### Deploy with internal load balancer
 ```
-npx cdk deploy -- -c internalALB=true
+npx cdk deploy -c internalALB=true
 ```
+
+#### Customize the version of Kubernetes
+The solution will create [Kubernetes 1.20](https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html#kubernetes-1.20) by default. You can specify other Kubernetes versions like below,
+```
+npx cdk deploy <other options> --parameters KubernetesVersion=1.19
+```
+
+**NOTE**: `1.20`, `1.19` and `1.18` are allowed versions.
 
 #### Deploy to China regions
 Due to AWS load balancer has different policy requirement for partitions, you need speicfy the target region info via context `region` to pick the corresponding IAM policies.
 ```
-npx cdk deploy -- <other options> -c region=cn-north-1
+npx cdk deploy <other options> -c region=cn-north-1
 ```
 
 ### Init admin password
@@ -63,7 +71,7 @@ You must specify the default init admin password when deploying this solution. T
 ### Auto configuration
 Nexus3 supports using [script][nexus3-script] to configure the Nexus3 service, for example, BlobStores, Repositories and so on. The script feature is disabled by default since Nexus3 3.21.2. You can opt-in auto configuration feature of this solution like below that will enable script feature of Nexus.
 ```
-npx cdk deploy -- <other options> -c enableAutoConfigured=true
+npx cdk deploy <other options> -c enableAutoConfigured=true
 ```
 It would automatically configure the fresh provisioning Nexus3 with below changes,
 
