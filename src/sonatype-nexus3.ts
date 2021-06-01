@@ -3,10 +3,13 @@ import * as cdk from '@aws-cdk/core';
 import { SonatypeNexus3Stack } from './lib/sonatype-nexus3-stack';
 
 const app = new cdk.App();
-const env = app.node.tryGetContext('createNewVpc') ? undefined : {
-  region: process.env.CDK_DEFAULT_REGION,
+
+const vpcId = app.node.tryGetContext('vpcId');
+const env = vpcId ? {
   account: process.env.CDK_DEFAULT_ACCOUNT,
-};
+  region: process.env.CDK_DEFAULT_REGION,
+} : undefined;
+
 new SonatypeNexus3Stack(app, 'SonatypeNexus3OnEKS', {
   env: env,
 });

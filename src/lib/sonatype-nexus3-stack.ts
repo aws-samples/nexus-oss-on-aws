@@ -84,20 +84,27 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       }
     }
 
-    let vpc!: ec2.IVpc;
-    const createNewVpc: boolean = this.node.tryGetContext('createNewVpc') ?? false;
-    if (createNewVpc) {
-      vpc = new ec2.Vpc(this, 'NexusVpc', {
+    const vpcId = this.node.tryGetContext('vpcId');
+    const vpc = vpcId ? ec2.Vpc.fromLookup(this, 'NexusOSSVpc', {
+      vpcId: vpcId === 'default' ? undefined : vpcId,
+      isDefault: vpcId === 'default' ? true : undefined,
+    }) : (() => {
+      const newVpc = new ec2.Vpc(this, 'NexusOSSVpc', {
         maxAzs: 2,
+        gatewayEndpoints: {
+          s3: {
+            service: ec2.GatewayVpcEndpointAwsService.S3,
+          },
+        },
       });
-    } else {
-      vpc = ec2.Vpc.fromLookup(this, 'vpc', {
-        isDefault: true,
+      newVpc.addFlowLog('VpcFlowlogs', {
+        destination: ec2.FlowLogDestination.toS3(),
       });
-      if (this.azOfSubnets(vpc.publicSubnets) <= 1 ||
-        this.azOfSubnets(vpc.privateSubnets) <= 1) {
-        throw new Error(`VPC '${vpc.vpcId}' must have both public and private subnets cross two AZs at least.`);
-      }
+      return newVpc;
+    })();
+    if (this.azOfSubnets(vpc.publicSubnets) <= 1 ||
+      this.azOfSubnets(vpc.privateSubnets) <= 1) {
+      throw new Error(`VPC '${vpc.vpcId}' must have both public and private subnets cross two AZs at least.`);
     }
 
     const clusterAdmin = new iam.Role(this, 'AdminRole', {
