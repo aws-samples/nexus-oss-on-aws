@@ -38,10 +38,18 @@ or
 npx cdk deploy --parameters NexusAdminInitPassword=<init admin password of nexus3> --parameters DomainName=<nexus.mydomain.com> --parameters R53HostedZoneId=<id of route53 hosted zone> -c enableR53HostedZone=true
 ```
 
-#### Deploy to a new created VPC
+#### Deploy to an existing VPC
+This solution will create new VPC across two AZs with public, private subnets and NAT gateways by default.
+
+You can deploy the solution to the existing VPC by below options,
 ```
-npx cdk deploy <other options> -c createNewVpc=true
+npx cdk deploy <other options> -c vpcId=<existing vpc id>
+
+# or deploy to the default vpc
+npx cdk deploy <other options> -c vpcId=default
 ```
+
+**NOTE**: the existing VPC must have public and private subnets across two AZs and route the internet traffic of private subnets to NAT gateways.
 
 #### Deploy with internal load balancer
 ```

@@ -12,7 +12,6 @@ describe('Nexus OSS stack', () => {
   let previous: (scope: cdk.Construct, options: cdk.GetContextValueOptions) => cdk.GetContextValueResult;
 
   const defaultContext = {
-    createNewVpc: true,
     enableR53HostedZone: true,
   };
 
@@ -110,11 +109,11 @@ describe('Nexus OSS stack', () => {
             },
             '","resources":{"requests":{"memory":"4800Mi"}},"livenessProbe":{"path":"/"},"nodeSelector":{"usage":"nexus3"}},"nexusProxy":{"enabled":false},"persistence":{"enabled":true,"storageClass":"efs-sc","accessMode":"ReadWriteMany"},"nexusBackup":{"enabled":false,"persistence":{"enabled":false}},"nexusCloudiam":{"enabled":false,"persistence":{"enabled":false}},"ingress":{"enabled":true,"path":"/*","annotations":{"alb.ingress.kubernetes.io/backend-protocol":"HTTP","alb.ingress.kubernetes.io/healthcheck-path":"/","alb.ingress.kubernetes.io/healthcheck-port":8081,"alb.ingress.kubernetes.io/listen-ports":"[{\\"HTTP\\": 80}, {\\"HTTPS\\": 443}]","alb.ingress.kubernetes.io/scheme":"internet-facing","alb.ingress.kubernetes.io/inbound-cidrs":"0.0.0.0/0","alb.ingress.kubernetes.io/auth-type":"none","alb.ingress.kubernetes.io/target-type":"ip","kubernetes.io/ingress.class":"alb","alb.ingress.kubernetes.io/tags":"app=nexus3","alb.ingress.kubernetes.io/subnets":"',
             {
-              Ref: 'NexusVpcPublicSubnet1SubnetE9292C67',
+              Ref: 'NexusOSSVpcPublicSubnet1SubnetE287B3FC',
             },
             ',',
             {
-              Ref: 'NexusVpcPublicSubnet2Subnet4D9CEF81',
+              Ref: 'NexusOSSVpcPublicSubnet2Subnet8D595BFF',
             },
             '","alb.ingress.kubernetes.io/certificate-arn":"',
             {
@@ -153,16 +152,16 @@ describe('Nexus OSS stack', () => {
         resourcesVpcConfig: {
           subnetIds: [
             {
-              Ref: 'NexusVpcPublicSubnet1SubnetE9292C67',
+              Ref: 'NexusOSSVpcPublicSubnet1SubnetE287B3FC',
             },
             {
-              Ref: 'NexusVpcPublicSubnet2Subnet4D9CEF81',
+              Ref: 'NexusOSSVpcPublicSubnet2Subnet8D595BFF',
             },
             {
-              Ref: 'NexusVpcPrivateSubnet1Subnet10A775DD',
+              Ref: 'NexusOSSVpcPrivateSubnet1SubnetEFE22FB8',
             },
             {
-              Ref: 'NexusVpcPrivateSubnet2Subnet09C60382',
+              Ref: 'NexusOSSVpcPrivateSubnet2Subnet8A12FC8A',
             },
           ],
           securityGroupIds: [
@@ -184,10 +183,7 @@ describe('Nexus OSS stack', () => {
     const context = {
       enableR53HostedZone: false,
     };
-    ({ app, stack } = initializeStackWithContextsAndEnvs(app, stack, context, {
-      account: '123456789012',
-      region: 'cn-north-1',
-    }));
+    ({ app, stack } = initializeStackWithContextsAndEnvs(app, stack, context));
 
     expect(stack).toCountResources('AWS::CertificateManager::Certificate', 0);
   });
@@ -254,11 +250,11 @@ describe('Nexus OSS stack', () => {
             },
             '","resources":{"requests":{"memory":"4800Mi"}},"livenessProbe":{"path":"/"},"nodeSelector":{"usage":"nexus3"}},"nexusProxy":{"enabled":false},"persistence":{"enabled":true,"storageClass":"efs-sc","accessMode":"ReadWriteMany"},"nexusBackup":{"enabled":false,"persistence":{"enabled":false}},"nexusCloudiam":{"enabled":false,"persistence":{"enabled":false}},"ingress":{"enabled":true,"path":"/*","annotations":{"alb.ingress.kubernetes.io/backend-protocol":"HTTP","alb.ingress.kubernetes.io/healthcheck-path":"/","alb.ingress.kubernetes.io/healthcheck-port":8081,"alb.ingress.kubernetes.io/listen-ports":"[{\\"HTTP\\": 80}, {\\"HTTPS\\": 443}]","alb.ingress.kubernetes.io/scheme":"internet-facing","alb.ingress.kubernetes.io/inbound-cidrs":"0.0.0.0/0","alb.ingress.kubernetes.io/auth-type":"none","alb.ingress.kubernetes.io/target-type":"ip","kubernetes.io/ingress.class":"alb","alb.ingress.kubernetes.io/tags":"app=nexus3","alb.ingress.kubernetes.io/subnets":"',
             {
-              Ref: 'NexusVpcPublicSubnet1SubnetE9292C67',
+              Ref: 'NexusOSSVpcPublicSubnet1SubnetE287B3FC',
             },
             ',',
             {
-              Ref: 'NexusVpcPublicSubnet2Subnet4D9CEF81',
+              Ref: 'NexusOSSVpcPublicSubnet2Subnet8D595BFF',
             },
             '","alb.ingress.kubernetes.io/certificate-arn":"',
             {
@@ -313,7 +309,7 @@ describe('Nexus OSS stack', () => {
   test('AWS load baalancer controller helm chart is created', () => {
     const context = {
       ...defaultContext,
-      createNewVpc: false,
+      vpcId: 'default',
     };
     ({ app, stack } = initializeStackWithContextsAndEnvs(app, stack, context, {
       account: '123456789012',
@@ -330,7 +326,7 @@ describe('Nexus OSS stack', () => {
   test('External dns resource is created when r53Domain is specified.', () => {
     const context = {
       ...defaultContext,
-      createNewVpc: false,
+      vpcId: 'default',
     };
     ({ app, stack } = initializeStackWithContextsAndEnvs(app, stack, context, {
       account: '123456789012',
@@ -392,7 +388,7 @@ describe('Nexus OSS stack', () => {
           {
             CidrIp: {
               'Fn::GetAtt': [
-                'NexusVpc88FCF4B5',
+                'NexusOSSVpc94CE3B74',
                 'CidrBlock',
               ],
             },
@@ -499,17 +495,17 @@ describe('Nexus OSS stack', () => {
             '","resources":{"requests":{"memory":"4800Mi"}},"livenessProbe":{"path":"/"},"nodeSelector":{"usage":"nexus3"}},"nexusProxy":{"enabled":false},"persistence":{"enabled":true,"storageClass":"efs-sc","accessMode":"ReadWriteMany"},"nexusBackup":{"enabled":false,"persistence":{"enabled":false}},"nexusCloudiam":{"enabled":false,"persistence":{"enabled":false}},"ingress":{"enabled":true,"path":"/*","annotations":{"alb.ingress.kubernetes.io/backend-protocol":"HTTP","alb.ingress.kubernetes.io/healthcheck-path":"/","alb.ingress.kubernetes.io/healthcheck-port":8081,"alb.ingress.kubernetes.io/listen-ports":"[{\\"HTTP\\": 80}]","alb.ingress.kubernetes.io/scheme":"internal","alb.ingress.kubernetes.io/inbound-cidrs":"',
             {
               'Fn::GetAtt': [
-                'NexusVpc88FCF4B5',
+                'NexusOSSVpc94CE3B74',
                 'CidrBlock',
               ],
             },
             '","alb.ingress.kubernetes.io/auth-type":"none","alb.ingress.kubernetes.io/target-type":"ip","kubernetes.io/ingress.class":"alb","alb.ingress.kubernetes.io/tags":"app=nexus3","alb.ingress.kubernetes.io/subnets":"',
             {
-              Ref: 'NexusVpcPublicSubnet1SubnetE9292C67',
+              Ref: 'NexusOSSVpcPublicSubnet1SubnetE287B3FC',
             },
             ',',
             {
-              Ref: 'NexusVpcPublicSubnet2Subnet4D9CEF81',
+              Ref: 'NexusOSSVpcPublicSubnet2Subnet8D595BFF',
             },
             '"},"tls":{"enabled":false},"rules":[{"http":{"paths":[{"path":"/*","backend":{"serviceName":"nexus3-sonatype-nexus","servicePort":8081}}]}}]},"serviceAccount":{"create":false}}',
           ],
