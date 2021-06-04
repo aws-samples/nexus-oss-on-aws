@@ -69,10 +69,7 @@ describe('Nexus OSS stack', () => {
           ],
         },
       ],
-    }, options => {
-      expect(options.filter).toEqual({
-        isDefault: 'true',
-      });
+    }, _options => {
     });
   });
 
@@ -107,7 +104,7 @@ describe('Nexus OSS stack', () => {
                 'nexus',
               ],
             },
-            '","resources":{"requests":{"memory":"4800Mi"}},"livenessProbe":{"path":"/"},"nodeSelector":{"usage":"nexus3"}},"nexusProxy":{"enabled":false},"persistence":{"enabled":true,"storageClass":"efs-sc","accessMode":"ReadWriteMany"},"nexusBackup":{"enabled":false,"persistence":{"enabled":false}},"nexusCloudiam":{"enabled":false,"persistence":{"enabled":false}},"ingress":{"enabled":true,"path":"/*","annotations":{"alb.ingress.kubernetes.io/backend-protocol":"HTTP","alb.ingress.kubernetes.io/healthcheck-path":"/","alb.ingress.kubernetes.io/healthcheck-port":8081,"alb.ingress.kubernetes.io/listen-ports":"[{\\"HTTP\\": 80}, {\\"HTTPS\\": 443}]","alb.ingress.kubernetes.io/scheme":"internet-facing","alb.ingress.kubernetes.io/inbound-cidrs":"0.0.0.0/0","alb.ingress.kubernetes.io/auth-type":"none","alb.ingress.kubernetes.io/target-type":"ip","kubernetes.io/ingress.class":"alb","alb.ingress.kubernetes.io/tags":"app=nexus3","alb.ingress.kubernetes.io/subnets":"',
+            '","resources":{"requests":{"memory":"4800Mi"}},"livenessProbe":{"path":"/"}},"nexusProxy":{"enabled":false},"persistence":{"enabled":true,"storageClass":"efs-sc","accessMode":"ReadWriteMany"},"nexusBackup":{"enabled":false,"persistence":{"enabled":false}},"nexusCloudiam":{"enabled":false,"persistence":{"enabled":false}},"ingress":{"enabled":true,"path":"/*","annotations":{"alb.ingress.kubernetes.io/backend-protocol":"HTTP","alb.ingress.kubernetes.io/healthcheck-path":"/","alb.ingress.kubernetes.io/healthcheck-port":8081,"alb.ingress.kubernetes.io/listen-ports":"[{\\"HTTP\\": 80}, {\\"HTTPS\\": 443}]","alb.ingress.kubernetes.io/scheme":"internet-facing","alb.ingress.kubernetes.io/inbound-cidrs":"0.0.0.0/0","alb.ingress.kubernetes.io/auth-type":"none","alb.ingress.kubernetes.io/target-type":"ip","kubernetes.io/ingress.class":"alb","alb.ingress.kubernetes.io/tags":"app=nexus3","alb.ingress.kubernetes.io/subnets":"',
             {
               Ref: 'NexusOSSVpcPublicSubnet1SubnetE287B3FC',
             },
@@ -129,7 +126,7 @@ describe('Nexus OSS stack', () => {
       },
       Release: 'nexus3',
       Chart: 'sonatype-nexus',
-      Version: '4.1.1',
+      Version: '5.1.2',
       Namespace: 'default',
       Repository: 'https://oteemo.github.io/charts/',
       Wait: true,
@@ -248,7 +245,7 @@ describe('Nexus OSS stack', () => {
                 'nexus',
               ],
             },
-            '","resources":{"requests":{"memory":"4800Mi"}},"livenessProbe":{"path":"/"},"nodeSelector":{"usage":"nexus3"}},"nexusProxy":{"enabled":false},"persistence":{"enabled":true,"storageClass":"efs-sc","accessMode":"ReadWriteMany"},"nexusBackup":{"enabled":false,"persistence":{"enabled":false}},"nexusCloudiam":{"enabled":false,"persistence":{"enabled":false}},"ingress":{"enabled":true,"path":"/*","annotations":{"alb.ingress.kubernetes.io/backend-protocol":"HTTP","alb.ingress.kubernetes.io/healthcheck-path":"/","alb.ingress.kubernetes.io/healthcheck-port":8081,"alb.ingress.kubernetes.io/listen-ports":"[{\\"HTTP\\": 80}, {\\"HTTPS\\": 443}]","alb.ingress.kubernetes.io/scheme":"internet-facing","alb.ingress.kubernetes.io/inbound-cidrs":"0.0.0.0/0","alb.ingress.kubernetes.io/auth-type":"none","alb.ingress.kubernetes.io/target-type":"ip","kubernetes.io/ingress.class":"alb","alb.ingress.kubernetes.io/tags":"app=nexus3","alb.ingress.kubernetes.io/subnets":"',
+            '","resources":{"requests":{"memory":"4800Mi"}},"livenessProbe":{"path":"/"}},"nexusProxy":{"enabled":false},"persistence":{"enabled":true,"storageClass":"efs-sc","accessMode":"ReadWriteMany"},"nexusBackup":{"enabled":false,"persistence":{"enabled":false}},"nexusCloudiam":{"enabled":false,"persistence":{"enabled":false}},"ingress":{"enabled":true,"path":"/*","annotations":{"alb.ingress.kubernetes.io/backend-protocol":"HTTP","alb.ingress.kubernetes.io/healthcheck-path":"/","alb.ingress.kubernetes.io/healthcheck-port":8081,"alb.ingress.kubernetes.io/listen-ports":"[{\\"HTTP\\": 80}, {\\"HTTPS\\": 443}]","alb.ingress.kubernetes.io/scheme":"internet-facing","alb.ingress.kubernetes.io/inbound-cidrs":"0.0.0.0/0","alb.ingress.kubernetes.io/auth-type":"none","alb.ingress.kubernetes.io/target-type":"ip","kubernetes.io/ingress.class":"alb","alb.ingress.kubernetes.io/tags":"app=nexus3","alb.ingress.kubernetes.io/subnets":"',
             {
               Ref: 'NexusOSSVpcPublicSubnet1SubnetE287B3FC',
             },
@@ -492,7 +489,7 @@ describe('Nexus OSS stack', () => {
                 'nexus',
               ],
             },
-            '","resources":{"requests":{"memory":"4800Mi"}},"livenessProbe":{"path":"/"},"nodeSelector":{"usage":"nexus3"}},"nexusProxy":{"enabled":false},"persistence":{"enabled":true,"storageClass":"efs-sc","accessMode":"ReadWriteMany"},"nexusBackup":{"enabled":false,"persistence":{"enabled":false}},"nexusCloudiam":{"enabled":false,"persistence":{"enabled":false}},"ingress":{"enabled":true,"path":"/*","annotations":{"alb.ingress.kubernetes.io/backend-protocol":"HTTP","alb.ingress.kubernetes.io/healthcheck-path":"/","alb.ingress.kubernetes.io/healthcheck-port":8081,"alb.ingress.kubernetes.io/listen-ports":"[{\\"HTTP\\": 80}]","alb.ingress.kubernetes.io/scheme":"internal","alb.ingress.kubernetes.io/inbound-cidrs":"',
+            '","resources":{"requests":{"memory":"4800Mi"}},"livenessProbe":{"path":"/"}},"nexusProxy":{"enabled":false},"persistence":{"enabled":true,"storageClass":"efs-sc","accessMode":"ReadWriteMany"},"nexusBackup":{"enabled":false,"persistence":{"enabled":false}},"nexusCloudiam":{"enabled":false,"persistence":{"enabled":false}},"ingress":{"enabled":true,"path":"/*","annotations":{"alb.ingress.kubernetes.io/backend-protocol":"HTTP","alb.ingress.kubernetes.io/healthcheck-path":"/","alb.ingress.kubernetes.io/healthcheck-port":8081,"alb.ingress.kubernetes.io/listen-ports":"[{\\"HTTP\\": 80}]","alb.ingress.kubernetes.io/scheme":"internal","alb.ingress.kubernetes.io/inbound-cidrs":"',
             {
               'Fn::GetAtt': [
                 'NexusOSSVpc94CE3B74',
@@ -512,6 +509,25 @@ describe('Nexus OSS stack', () => {
         ],
       },
     });
+  });
+
+  test('deploy to existing eks cluster.', () => {
+    const context = {
+      ...defaultContext,
+      importedEKS: true,
+      vpcId: 'vpc-12345',
+      eksClusterName: 'eks-cluster',
+      eksKubectlRoleArn: 'arn:aws-cn:iam::123456789012:role/eks-kubectl-role',
+      eksOpenIdConnectProviderArn: 'arn:aws-cn:iam::123456789012:oidc-provider/oidc.eks.cn-north-1.amazonaws.cn/id/123456789',
+      nodeGroupRoleArn: 'arn:aws-cn:iam::123456789012:role/eksctl-cluster-nodegroup-ng-NodeInstanceRole-123456',
+    };
+    ({ app, stack } = initializeStackWithContextsAndEnvs(app, stack, context, {
+      account: '123456789012',
+      region: 'cn-north-1',
+    }));
+
+    expect(stack).toCountResources('Custom::AWSCDK-EKS-Cluster', 0);
+    expect(stack).toCountResources('AWS::EKS::Nodegroup', 0);
   });
 
 });

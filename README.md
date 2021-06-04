@@ -15,6 +15,7 @@ Deploy Sonatype Nexus Repository OSS via Helm on EKS.
 ### Prerequisites
 - An AWS account
 - Nodejs LTS installed, such as 12.x or 14.x
+- Install Docker Engine
 - A public hosted zone in Route53(optional)
 - Has default VPC with public and private subnets cross two available zones at least, NAT gateway also is required
 - Install dependencies of app  
@@ -62,12 +63,26 @@ The solution will create [Kubernetes 1.20](https://docs.aws.amazon.com/eks/lates
 npx cdk deploy <other options> --parameters KubernetesVersion=1.19
 ```
 
-**NOTE**: `1.20`, `1.19` and `1.18` are allowed versions.
+**NOTE**: `1.20`, `1.19` and `1.18` are allowed versions. You can NOT enable [auto configuration feat](#auto-configuration) when creating an EKS cluster with version **1.19**. See [this issue](https://github.com/aws/aws-cdk/issues/14933) for detail. 
 
 #### Deploy to China regions
 Due to AWS load balancer has different policy requirement for partitions, you need speicfy the target region info via context `region` to pick the corresponding IAM policies.
 ```
 npx cdk deploy <other options> -c region=cn-north-1
+```
+
+#### Deploy to existing EKS cluster
+The solution could deploy the Nexus Repository OSS to the existing EKS cluster. There are some prerequisites that your EKS cluster must meet,
+
+- the version of EKS cluster is v1.17+,
+- the EKS cluster has EC2 based node group which is required by EFS CSI driver,
+- the ARN of an IAM role mapped to the `system:masters` RBAC role. If the cluster you are using was created using the AWS CDK, the CloudFormation stack has an output that includes an IAM role that can be used. Otherwise, you can create an IAM role and map it to `system:masters` manually. The trust policy of this role should include the the `arn:aws::iam::${accountId}:root` principal in order to allow the execution role of the kubectl resource to assume it. Then you can follow the [eksctl guide](https://eksctl.io/usage/iam-identity-mappings/) to map the IAM role to Kubernetes RBAC,
+- the OpenId connect provider ARN of your EKS. You can find the ARN from IAM's console. If your cluster does not have an OpenId connect provider, you can follow the [eksctl guide](https://eksctl.io/usage/iamserviceaccounts/) to create one,
+- the ARN of the IAM role associated with the nodegroup in your cluster. You can find the ARN of node group from EKS console.
+ 
+Below is an example to deploy Nexus Repository OSS to an existing EKS cluster with public domain configured,
+```bash
+npx cdk deploy -c vpcId=vpc-12345 -c importedEKS=true -c eksClusterName=the-cluster-name -c eksKubectlRoleArn=arn:aws:iam::123456789012:role/eks-kubectl-role -c eksOpenIdConnectProviderArn=arn:aws:iam::123456789012:oidc-provider/oidc.eks.ap-east-1.amazonaws.com/id/12345678 -c nodeGroupRoleArn=arn:aws:iam::123456789012:role/eksctl-cluster-nodegroup-ng-NodeInstanceRole-123456 --parameters NexusAdminInitPassword=<the strong password> -c enableAutoConfigured=true --parameters DomainName=<the custom domain> --parameters R53HostedZoneId=<id of r53 zone> -c enableR53HostedZone=true
 ```
 
 ### Init admin password

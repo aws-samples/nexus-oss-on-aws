@@ -48,7 +48,7 @@ def handler(event, context):
     except KeyError as e:
         cfn_error(f"invalid request. Missing key {str(e)}")
     except Exception as e:
-        logger.exception(e)
+        logger.exception(str(e))
         cfn_error(str(e))
 
 # sends a response to cloudformation
