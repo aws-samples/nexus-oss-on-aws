@@ -107,30 +107,12 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       throw new Error(`VPC '${vpc.vpcId}' must have both public and private subnets cross two AZs at least.`);
     }
 
-    const clusterAdmin = new iam.Role(this, 'AdminRole', {
-      assumedBy: new iam.AccountRootPrincipal(),
-    });
+    const request = require('sync-request');
+    const yaml = require('js-yaml');
 
-    const isFargetEnabled = (this.node.tryGetContext('enableFarget') || 'false').toLowerCase() === 'true';
-
-    const eksVersion = new cdk.CfnParameter(this, 'KubernetesVersion', {
-      type: 'String',
-      allowedValues: [
-        '1.20',
-        '1.19',
-        '1.18',
-      ],
-      default: '1.20',
-      description: 'The version of Kubernetes.',
-    });
-
-    const cluster = new eks.Cluster(this, 'NexusCluster', {
-      vpc,
-      defaultCapacity: 0,
-      mastersRole: clusterAdmin,
-      version: eks.KubernetesVersion.of(eksVersion.valueAsString),
-      coreDnsComputeType: isFargetEnabled ? eks.CoreDnsComputeType.FARGATE : eks.CoreDnsComputeType.EC2,
-    });
+    const importedEks = this.node.tryGetContext('importedEKS') ?? false;
+    var cluster: eks.ICluster;
+    var nodeGroup: eks.Nodegroup;
 
     const nexusBlobBucket = new s3.Bucket(this, 'nexus3-blobstore', {
       removalPolicy: cdk.RemovalPolicy.RETAIN,
@@ -162,53 +144,101 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       ],
     });
 
-    if (isFargetEnabled) {
-      cluster.addFargateProfile('FargetProfile', {
-        selectors: [
-          {
-            namespace: 'kube-system',
-            labels: {
-              'k8s-app': 'kube-dns',
-            },
-          },
-        ],
+    if (importedEks) {
+      if (!vpcId) {throw new Error('Context variable "vpcId" must be specified for imported EKS cluster.');}
+
+      const clusterName = this.node.tryGetContext('eksClusterName');
+      const kubectlRoleArn = this.node.tryGetContext('eksKubectlRoleArn');
+      const openIdConnectProviderArn = this.node.tryGetContext('eksOpenIdConnectProviderArn');
+      const nodeGroupRoleArn = this.node.tryGetContext('nodeGroupRoleArn');
+
+      if (!clusterName || !kubectlRoleArn || !openIdConnectProviderArn || !nodeGroupRoleArn) {throw new Error('Context variables "eksClusterName", "eksKubectlRoleArn", "eksOpenIdConnectProviderArn", "nodeGroupRoleArn" must be specified for imported EKS cluster.');}
+
+      cluster = eks.Cluster.fromClusterAttributes(this, 'ImportedEKS', {
+        clusterName,
+        kubectlRoleArn,
+        openIdConnectProvider: eks.OpenIdConnectProvider.fromOpenIdConnectProviderArn(
+          this, 'ImportedClusterOpendIdConnectProvider', openIdConnectProviderArn),
+        vpc,
       });
+      // the limitation of Nexus3 image not working with IRSA
+      const nodeGroupRole = iam.Role.fromRoleArn(this, 'NodeGroupRole', nodeGroupRoleArn, {
+        mutable: true,
+      });
+      nodeGroupRole.attachInlinePolicy(new iam.Policy(this, 'NexusS3BlobStore', {
+        statements: [s3BucketPolicy, s3ObjectPolicy],
+      }));
+    } else {
+      const clusterAdmin = new iam.Role(this, 'AdminRole', {
+        assumedBy: new iam.AccountRootPrincipal(),
+      });
+
+      const isFargetEnabled = (this.node.tryGetContext('enableFarget') || 'false').toLowerCase() === 'true';
+
+      const eksVersion = new cdk.CfnParameter(this, 'KubernetesVersion', {
+        type: 'String',
+        allowedValues: [
+          '1.20',
+          '1.19',
+          '1.18',
+        ],
+        default: '1.20',
+        description: 'The version of Kubernetes.',
+      });
+
+      cluster = new eks.Cluster(this, 'NexusCluster', {
+        vpc,
+        defaultCapacity: 0,
+        mastersRole: clusterAdmin,
+        version: eks.KubernetesVersion.of(eksVersion.valueAsString),
+        coreDnsComputeType: isFargetEnabled ? eks.CoreDnsComputeType.FARGATE : eks.CoreDnsComputeType.EC2,
+      });
+
+      if (isFargetEnabled) {
+        (cluster as eks.Cluster).addFargateProfile('FargetProfile', {
+          selectors: [
+            {
+              namespace: 'kube-system',
+              labels: {
+                'k8s-app': 'kube-dns',
+              },
+            },
+          ],
+        });
+      }
+
+      nodeGroup = (cluster as eks.Cluster).addNodegroupCapacity('nodegroup', {
+        nodegroupName: 'nexus3',
+        instanceTypes: [
+          new ec2.InstanceType(this.node.tryGetContext('instanceType') ?? 'm5.large'),
+        ],
+        minSize: 1,
+        maxSize: 3,
+        labels: {
+          usage: 'nexus3',
+        },
+      });
+      // Have to bind IAM role to node due to Nexus3 uses old AWS Java SDK not supporting IRSA
+      // see https://github.com/sonatype/nexus-public/pull/69 for detail
+      nodeGroup.role.attachInlinePolicy(new iam.Policy(this, 'NexusS3BlobStore', {
+        statements: [s3BucketPolicy, s3ObjectPolicy],
+      }));
+
+      // install SSM agent as daemonset
+      nodeGroup.role.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonSSMManagedInstanceCore'));
+
+      var ssmManifests = request('GET', 'https://raw.githubusercontent.com/aws-samples/ssm-agent-daemonset-installer/541da0a68a96d5b2ce184724f3d35d22d9ac7236/setup.yaml')
+        .getBody('utf-8');
+
+      if (targetRegion.startsWith('cn-')) {
+        ssmManifests = ssmManifests.replace('https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/linux_amd64/amazon-ssm-agent.rpm',
+          'https://s3.cn-north-1.amazonaws.com.cn/amazon-ssm-cn-north-1/latest/linux_amd64/amazon-ssm-agent.rpm')
+          .replace('jicowan/ssm-agent-installer:1.2', '048912060910.dkr.ecr.cn-northwest-1.amazonaws.com.cn/dockerhub/jicowan/ssm-agent-installer:1.2')
+          .replace('gcr.io/google-containers/pause:2.0', '048912060910.dkr.ecr.cn-northwest-1.amazonaws.com.cn/gcr/google-containers/pause:2.0');
+      }
+      const ssmInstallerResources = yaml.safeLoadAll(ssmManifests);
+      cluster.addManifest('ssm-agent-daemonset', ...ssmInstallerResources);
     }
-
-    const nodeGroup = cluster.addNodegroupCapacity('nodegroup', {
-      nodegroupName: 'nexus3',
-      instanceTypes: [
-        new ec2.InstanceType(this.node.tryGetContext('instanceType') ?? 'm5.large'),
-      ],
-      minSize: 1,
-      maxSize: 3,
-      labels: {
-        usage: 'nexus3',
-      },
-    });
-    // Have to bind IAM role to node due to Nexus3 uses old AWS Java SDK not supporting IRSA
-    // see https://github.com/sonatype/nexus-public/pull/69 for detail
-    nodeGroup.role.attachInlinePolicy(new iam.Policy(this, 'NexusS3BlobStore', {
-      statements: [s3BucketPolicy, s3ObjectPolicy],
-    }));
-
-    const request = require('sync-request');
-    const yaml = require('js-yaml');
-
-    // install SSM agent as daemonset
-    nodeGroup.role.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonSSMManagedInstanceCore'));
-
-    var ssmManifests = request('GET', 'https://raw.githubusercontent.com/aws-samples/ssm-agent-daemonset-installer/541da0a68a96d5b2ce184724f3d35d22d9ac7236/setup.yaml')
-      .getBody('utf-8');
-
-    if (targetRegion.startsWith('cn-')) {
-      ssmManifests = ssmManifests.replace('https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/linux_amd64/amazon-ssm-agent.rpm',
-        'https://s3.cn-north-1.amazonaws.com.cn/amazon-ssm-cn-north-1/latest/linux_amd64/amazon-ssm-agent.rpm')
-        .replace('jicowan/ssm-agent-installer:1.2', '048912060910.dkr.ecr.cn-northwest-1.amazonaws.com.cn/dockerhub/jicowan/ssm-agent-installer:1.2')
-        .replace('gcr.io/google-containers/pause:2.0', '048912060910.dkr.ecr.cn-northwest-1.amazonaws.com.cn/gcr/google-containers/pause:2.0');
-    }
-    const ssmInstallerResources = yaml.safeLoadAll(ssmManifests);
-    cluster.addManifest('ssm-agent-daemonset', ...ssmInstallerResources);
 
     // install AWS load balancer via Helm charts
     const awsLoadBalancerControllerVersion = 'v2.2.0';
@@ -247,21 +277,27 @@ export class SonatypeNexus3Stack extends cdk.Stack {
         enableWafv2: false,
       },
     });
-    awsLoadBalancerControllerChart.node.addDependency(nodeGroup);
+
+    if (cluster instanceof eks.Cluster) {
+      awsLoadBalancerControllerChart.node.addDependency(nodeGroup!);
+      awsLoadBalancerControllerChart.node.addDependency(cluster.awsAuth);
+    }
     awsLoadBalancerControllerChart.node.addDependency(albServiceAccount);
     awsLoadBalancerControllerChart.node.addDependency(cluster.openIdConnectProvider);
-    awsLoadBalancerControllerChart.node.addDependency(cluster.awsAuth);
 
     // deploy EFS, EFS CSI driver, PV
     const efsCSI = cluster.addHelmChart('EFSCSIDriver', {
       chart: 'aws-efs-csi-driver',
       repository: 'https://kubernetes-sigs.github.io/aws-efs-csi-driver/',
       release: 'aws-efs-csi-driver',
-      version: '2.0.0',
+      version: '2.0.1',
     });
-    efsCSI.node.addDependency(nodeGroup);
+    if (cluster instanceof eks.Cluster) {
+      efsCSI.node.addDependency(nodeGroup!);
+      efsCSI.node.addDependency(cluster.awsAuth);
+    }
     efsCSI.node.addDependency(cluster.openIdConnectProvider);
-    efsCSI.node.addDependency(cluster.awsAuth);
+
     const fileSystem = new efs.FileSystem(this, 'Nexus3FileSystem', {
       vpc,
       encrypted: true,
@@ -283,7 +319,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
         provisioner: 'efs.csi.aws.com',
       });
     efsStorageClass.node.addDependency(efsCSI);
-    const efsPVName = 'efs-pv';
+    const efsPVName = 'nexus3-oss-efs-pv';
     const efsPV = cluster.addManifest('efs-pv', {
       apiVersion: 'v1',
       kind: 'PersistentVolume',
@@ -428,7 +464,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
     }
 
     const enableAutoConfigured: boolean = this.node.tryGetContext('enableAutoConfigured') || false;
-    const nexus3ChartVersion = '4.1.1';
+    const nexus3ChartVersion = '5.1.2';
 
     const nexus3PurgeFunc = new lambda_python.PythonFunction(this, 'Nexus3Purge', {
       description: 'Func purges the resources(such as pvc) left after deleting Nexus3 helm chart',
@@ -488,9 +524,6 @@ export class SonatypeNexus3Stack extends cdk.Stack {
         },
         livenessProbe: {
           path: healthcheckPath,
-        },
-        nodeSelector: {
-          usage: 'nexus3',
         },
       },
       nexusProxy: {
@@ -562,7 +595,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
     nexus3Chart.node.addDependency(nexusServiceAccount);
     nexus3Chart.node.addDependency(nexus3PurgeCR);
     if (certificate) {
-      certificate.node.addDependency(nexus3PurgeCR);
+      nexus3PurgeCR.node.addDependency(certificate);
       nexus3Chart.node.addDependency(certificate);
       nexus3Chart.node.addDependency(externalDNSResource!);
     }
