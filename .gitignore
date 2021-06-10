@@ -15,8 +15,6 @@
 .parcel-cache/
 .vscode/
 .yarn-integrity
-/.changelog.tmp.md
-/.version.tmp.json
 /coverage
 /dist
 /lib
@@ -46,7 +44,6 @@ yarn-error.log*
 !/.projen/deps.json
 !/.projen/tasks.json
 !/.projenrc.js
-!/.versionrc.json
 !/cdk.json
 !/package.json
 !/src
