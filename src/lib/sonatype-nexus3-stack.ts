@@ -113,6 +113,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
     const importedEks = this.node.tryGetContext('importedEKS') ?? false;
     var cluster: eks.ICluster;
     var nodeGroup: eks.Nodegroup;
+    var eksVersion: cdk.CfnParameter;
 
     const nexusBlobBucket = new s3.Bucket(this, 'nexus3-blobstore', {
       removalPolicy: cdk.RemovalPolicy.RETAIN,
@@ -175,7 +176,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
 
       const isFargetEnabled = (this.node.tryGetContext('enableFarget') || 'false').toLowerCase() === 'true';
 
-      const eksVersion = new cdk.CfnParameter(this, 'KubernetesVersion', {
+      eksVersion = new cdk.CfnParameter(this, 'KubernetesVersion', {
         type: 'String',
         allowedValues: [
           '1.20',
@@ -632,6 +633,17 @@ export class SonatypeNexus3Stack extends cdk.Stack {
           },
         });
         nexus3AutoConfigureCR.node.addDependency(nexus3Chart);
+
+        const addCondition = (): void => {
+          if (eksVersion) {
+            const eksV119 = new cdk.CfnCondition(this, 'EKSV1.19', {
+              expression: cdk.Fn.conditionNot(cdk.Fn.conditionEquals('1.19', eksVersion.valueAsString)),
+            });
+            (autoConfigureFunc.node.defaultChild as lambda.CfnFunction).cfnOptions.condition = eksV119;
+            (nexus3AutoConfigureCR.node.defaultChild as cdk.CfnCustomResource).cfnOptions.condition = eksV119;
+          }
+        };
+        addCondition();
       }
     }
 
