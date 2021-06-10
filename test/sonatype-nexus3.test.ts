@@ -300,6 +300,7 @@ describe('Nexus OSS stack', () => {
       DependsOn: [
         'NexusClusterchartNexus37BADE970',
       ],
+      Condition: 'EKSV119',
     }, ResourcePart.CompleteDefinition);
   });
 
