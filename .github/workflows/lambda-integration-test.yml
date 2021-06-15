@@ -3,7 +3,7 @@ name: integration test of nexus preconfigure lambda
   push:
     branches:
       - master
-  pull_request: null
+  pull_request: {}
 jobs:
   lambda-integration-test:
     name: Lambda Integaration Test
