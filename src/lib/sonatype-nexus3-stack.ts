@@ -291,7 +291,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       chart: 'aws-efs-csi-driver',
       repository: 'https://kubernetes-sigs.github.io/aws-efs-csi-driver/',
       release: 'aws-efs-csi-driver',
-      version: '2.0.1',
+      version: '2.1.1', // mapping to v1.3.1
     });
     if (cluster instanceof eks.Cluster) {
       efsCSI.node.addDependency(nodeGroup!);
