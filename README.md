@@ -112,12 +112,19 @@ npx cdk destroy
 ## Quick deployment
 It's [an official solution][nexus-oss-on-aws-solution] of AWS China regions. You can quickly deploy this solution to below regions via CloudFormation,
 
+### Deploy Nexus Repository OSS as a public service
 Region name | Region code | Launch
 --- | --- | ---
 Global regions(switch to the region you want to deploy) | us-east-1(default) | [![Launch Stack](LaunchStack.jpg)](https://us-east-1.console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/create/template?stackName=NexusOSS&templateURL=https://aws-gcr-solutions.s3.amazonaws.com/nexus-oss-on-aws/latest/nexus-repository-oss-on-aws.template.json)
 AWS China(Beijing) Region | cn-north-1 | [![Launch Stack](LaunchStack.jpg)](https://console.amazonaws.cn/cloudformation/home?region=cn-north-1#/stacks/new?stackName=NexusOSS&templateURL=https://aws-gcr-solutions.s3.cn-north-1.amazonaws.com.cn/nexus-oss-on-aws/latest/nexus-repository-oss-on-aws-cn.template.json)
 AWS China(Ningxia) Region | cn-northwest-1 | [![Launch Stack](LaunchStack.jpg)](https://console.amazonaws.cn/cloudformation/home?region=cn-northwest-1#/stacks/new?stackName=NexusOSS&templateURL=https://aws-gcr-solutions.s3.cn-north-1.amazonaws.com.cn/nexus-oss-on-aws/latest/nexus-repository-oss-on-aws-cn.template.json)
 
+### Deploy Nexus Repository OSS as an internal service inside VPC
+Region name | Region code | Launch
+--- | --- | ---
+Global regions(switch to the region you want to deploy) | us-east-1(default) | [![Launch Stack](LaunchStack.jpg)](https://us-east-1.console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/create/template?stackName=PrivateNexusOSS&templateURL=https://aws-gcr-solutions.s3.amazonaws.com/nexus-oss-on-aws/latest/private-nexus-repository-oss-on-aws.template.json)
+AWS China(Beijing) Region | cn-north-1 | [![Launch Stack](LaunchStack.jpg)](https://console.amazonaws.cn/cloudformation/home?region=cn-north-1#/stacks/new?stackName=PrivateNexusOSS&templateURL=https://aws-gcr-solutions.s3.cn-north-1.amazonaws.com.cn/nexus-oss-on-aws/latest/private-nexus-repository-oss-on-aws-cn.template.json)
+AWS China(Ningxia) Region | cn-northwest-1 | [![Launch Stack](LaunchStack.jpg)](https://console.amazonaws.cn/cloudformation/home?region=cn-northwest-1#/stacks/new?stackName=PrivateNexusOSS&templateURL=https://aws-gcr-solutions.s3.cn-north-1.amazonaws.com.cn/nexus-oss-on-aws/latest/private-nexus-repository-oss-on-aws-cn.template.json)
 
 ## Security
 

@@ -63,6 +63,6 @@ project.tasks._tasks.synth._steps[0] = {
   exec: 'cdk synth -c createNewVpc=true',
 };
 project.addFields({
-  version: '1.1.0-mainline',
+  version: '1.2.0-mainline',
 });
 project.synth();
