@@ -639,8 +639,19 @@ export class SonatypeNexus3Stack extends cdk.Stack {
             const eksV119 = new cdk.CfnCondition(this, 'EKSV1.19', {
               expression: cdk.Fn.conditionNot(cdk.Fn.conditionEquals('1.19', eksVersion.valueAsString)),
             });
-            (autoConfigureFunc.node.defaultChild as lambda.CfnFunction).cfnOptions.condition = eksV119;
-            (nexus3AutoConfigureCR.node.defaultChild as cdk.CfnCustomResource).cfnOptions.condition = eksV119;
+            autoConfigureFunc.node.children.forEach(r => {
+              if (r instanceof cdk.CfnResource) {
+                (r as cdk.CfnResource).cfnOptions.condition = eksV119;
+              } else {
+                r.node.children.forEach(r1 => {
+                  if (r1 instanceof cdk.CfnResource) {
+                    (r1 as cdk.CfnResource).cfnOptions.condition = eksV119;
+                  }
+                });
+              }
+
+            });
+            nexus3AutoConfigureCR.node.children.forEach(r => { (r as cdk.CfnResource).cfnOptions.condition = eksV119; });
           }
         };
         addCondition();
