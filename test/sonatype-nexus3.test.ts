@@ -302,6 +302,23 @@ describe('Nexus OSS stack', () => {
       ],
       Condition: 'EKSV119',
     }, ResourcePart.CompleteDefinition);
+
+    expect(stack).toHaveResourceLike('Custom::LogRetention', {
+      Properties: {
+        LogGroupName: {
+          'Fn::Join': [
+            '',
+            [
+              '/aws/lambda/',
+              {
+                Ref: 'Neuxs3AutoCofingureE91D0A63',
+              },
+            ],
+          ],
+        },
+      },
+      Condition: 'EKSV119',
+    }, ResourcePart.CompleteDefinition);
   });
 
   test('AWS load baalancer controller helm chart is created', () => {
