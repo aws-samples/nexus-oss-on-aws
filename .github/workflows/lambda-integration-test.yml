@@ -4,6 +4,7 @@ name: integration test of nexus preconfigure lambda
     branches:
       - master
   pull_request: {}
+  workflow_dispatch: {}
 jobs:
   lambda-integration-test:
     name: Lambda Integaration Test
