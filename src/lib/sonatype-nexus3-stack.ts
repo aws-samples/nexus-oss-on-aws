@@ -11,6 +11,10 @@ import * as logs from '@aws-cdk/aws-logs';
 import * as route53 from '@aws-cdk/aws-route53';
 import * as s3 from '@aws-cdk/aws-s3';
 import * as cdk from '@aws-cdk/core';
+import {
+  AwsCustomResource,
+  AwsCustomResourcePolicy,
+} from '@aws-cdk/custom-resources';
 import { AwsCliLayer } from '@aws-cdk/lambda-layer-awscli';
 import { KubectlLayer } from '@aws-cdk/lambda-layer-kubectl';
 import * as pjson from '../../package.json';
@@ -201,6 +205,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
         version: eks.KubernetesVersion.of(eksVersion.valueAsString),
         coreDnsComputeType: isFargetEnabled ? eks.CoreDnsComputeType.FARGATE : eks.CoreDnsComputeType.EC2,
       });
+      this.setupClusterLogging(cluster);
 
       if (isFargetEnabled) {
         (cluster as eks.Cluster).addFargateProfile('FargetProfile', {
@@ -843,5 +848,59 @@ export class SonatypeNexus3Stack extends cdk.Stack {
 
   private azOfSubnets(subnets: ec2.ISubnet[]): number {
     return new Set(subnets.map(subnet => subnet.availabilityZone)).size;
+  }
+
+  setupClusterLogging(cluster: eks.ICluster): void {
+    new AwsCustomResource(this, 'ClusterLogsEnabler', {
+      policy: AwsCustomResourcePolicy.fromSdkCalls({
+        resources: [`${cluster.clusterArn}/update-config`],
+      }),
+      onCreate: {
+        physicalResourceId: { id: `${cluster.clusterArn}/LogsEnabler` },
+        service: 'EKS',
+        action: 'updateClusterConfig',
+        region: this.region,
+        parameters: {
+          name: cluster.clusterName,
+          logging: {
+            clusterLogging: [
+              {
+                enabled: true,
+                types: [
+                  'api',
+                  'audit',
+                  'authenticator',
+                  'controllerManager',
+                  'scheduler',
+                ],
+              },
+            ],
+          },
+        },
+      },
+      onDelete: {
+        physicalResourceId: { id: `${cluster.clusterArn}/LogsEnabler` },
+        service: 'EKS',
+        action: 'updateClusterConfig',
+        region: this.region,
+        parameters: {
+          name: cluster.clusterName,
+          logging: {
+            clusterLogging: [
+              {
+                enabled: false,
+                types: [
+                  'api',
+                  'audit',
+                  'authenticator',
+                  'controllerManager',
+                  'scheduler',
+                ],
+              },
+            ],
+          },
+        },
+      },
+    });
   }
 }
