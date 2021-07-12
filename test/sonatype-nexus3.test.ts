@@ -112,7 +112,11 @@ describe('Nexus OSS stack', () => {
             {
               Ref: 'NexusOSSVpcPublicSubnet2Subnet8D595BFF',
             },
-            '","alb.ingress.kubernetes.io/certificate-arn":"',
+            '","alb.ingress.kubernetes.io/load-balancer-attributes":"access_logs.s3.enabled=true,access_logs.s3.bucket=',
+            {
+              Ref: 'BucketAccessLog9C13C446',
+            },
+            ',access_logs.s3.prefix=albAccessLog","alb.ingress.kubernetes.io/certificate-arn":"',
             {
               Ref: 'SSLCertificate2E93C565',
             },
@@ -253,7 +257,11 @@ describe('Nexus OSS stack', () => {
             {
               Ref: 'NexusOSSVpcPublicSubnet2Subnet8D595BFF',
             },
-            '","alb.ingress.kubernetes.io/certificate-arn":"',
+            '","alb.ingress.kubernetes.io/load-balancer-attributes":"access_logs.s3.enabled=true,access_logs.s3.bucket=',
+            {
+              Ref: 'BucketAccessLog9C13C446',
+            },
+            ',access_logs.s3.prefix=albAccessLog","alb.ingress.kubernetes.io/certificate-arn":"',
             {
               Ref: 'SSLCertificate2E93C565',
             },
@@ -333,7 +341,7 @@ describe('Nexus OSS stack', () => {
     expect(stack).toHaveResourceLike('Custom::AWSCDK-EKS-HelmChart', {
       Release: 'aws-load-balancer-controller',
       Chart: 'aws-load-balancer-controller',
-      Version: '1.2.0',
+      Version: '1.2.3',
       Repository: 'https://aws.github.io/eks-charts',
     });
   });
@@ -478,6 +486,67 @@ describe('Nexus OSS stack', () => {
     });
   });
 
+  test('access log of ALB created by AWS load balancer controller.', () => {
+    expect(stack).toHaveResourceLike('AWS::S3::BucketPolicy', {
+      Bucket: {
+        Ref: 'BucketAccessLog9C13C446',
+      },
+      PolicyDocument: {
+        Statement: [
+          {
+            Action: [
+              's3:PutObject*',
+              's3:Abort*',
+            ],
+            Effect: 'Allow',
+            Principal: {
+              AWS: {
+                'Fn::Join': [
+                  '',
+                  [
+                    'arn:',
+                    {
+                      Ref: 'AWS::Partition',
+                    },
+                    ':iam::',
+                    {
+                      'Fn::FindInMap': [
+                        'ALBServiceAccountMapping',
+                        {
+                          Ref: 'AWS::Region',
+                        },
+                        'account',
+                      ],
+                    },
+                    ':root',
+                  ],
+                ],
+              },
+            },
+            Resource: {
+              'Fn::Join': [
+                '',
+                [
+                  {
+                    'Fn::GetAtt': [
+                      'BucketAccessLog9C13C446',
+                      'Arn',
+                    ],
+                  },
+                  '/albAccessLog/AWSLogs/',
+                  {
+                    Ref: 'AWS::AccountId',
+                  },
+                  '/*',
+                ],
+              ],
+            },
+          },
+        ],
+      },
+    });
+  });
+
   test('deploy alb as interal.', () => {
     const context = {
       ...defaultContext,
@@ -522,7 +591,11 @@ describe('Nexus OSS stack', () => {
             {
               Ref: 'NexusOSSVpcPublicSubnet2Subnet8D595BFF',
             },
-            '"},"tls":{"enabled":false},"rules":[{"http":{"paths":[{"path":"/*","backend":{"serviceName":"nexus3-sonatype-nexus","servicePort":8081}}]}}]},"serviceAccount":{"create":false}}',
+            '","alb.ingress.kubernetes.io/load-balancer-attributes":"access_logs.s3.enabled=true,access_logs.s3.bucket=',
+            {
+              Ref: 'BucketAccessLog9C13C446',
+            },
+            ',access_logs.s3.prefix=albAccessLog"},"tls":{"enabled":false},"rules":[{"http":{"paths":[{"path":"/*","backend":{"serviceName":"nexus3-sonatype-nexus","servicePort":8081}}]}}]},"serviceAccount":{"create":false}}',
           ],
         ],
       },
