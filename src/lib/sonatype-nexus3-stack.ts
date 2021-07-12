@@ -115,9 +115,16 @@ export class SonatypeNexus3Stack extends cdk.Stack {
     var nodeGroup: eks.Nodegroup;
     var eksVersion: cdk.CfnParameter;
 
+    const accessLogBucket = new s3.Bucket(this, 'BucketAccessLog', {
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+      serverAccessLogsPrefix: 'accessLogBucketAccessLog',
+    });
     const nexusBlobBucket = new s3.Bucket(this, 'nexus3-blobstore', {
       removalPolicy: cdk.RemovalPolicy.RETAIN,
       encryption: s3.BucketEncryption.S3_MANAGED,
+      serverAccessLogsBucket: accessLogBucket,
+      serverAccessLogsPrefix: 'blobstoreBucketAccessLog',
     });
     const s3BucketPolicy = new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
