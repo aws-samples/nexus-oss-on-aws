@@ -200,6 +200,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
 
       cluster = new eks.Cluster(this, 'NexusCluster', {
         vpc,
+        endpointAccess: eks.EndpointAccess.PRIVATE,
         defaultCapacity: 0,
         mastersRole: clusterAdmin,
         version: eks.KubernetesVersion.of(eksVersion.valueAsString),

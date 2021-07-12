@@ -173,7 +173,7 @@ describe('Nexus OSS stack', () => {
               ],
             },
           ],
-          endpointPublicAccess: true,
+          endpointPublicAccess: false,
           endpointPrivateAccess: true,
         },
       },
