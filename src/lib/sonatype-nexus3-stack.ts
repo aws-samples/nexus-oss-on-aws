@@ -249,7 +249,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
     }
 
     // install AWS load balancer via Helm charts
-    const awsLoadBalancerControllerVersion = 'v2.2.0';
+    const awsLoadBalancerControllerVersion = 'v2.2.1';
     const awsControllerBaseResourceBaseUrl = `https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/${awsLoadBalancerControllerVersion}/docs`;
     const awsControllerPolicyUrl = `${awsControllerBaseResourceBaseUrl}/install/iam_policy${targetRegion.startsWith('cn-') ? '_cn' : ''}.json`;
     const albNamespace = 'kube-system';
@@ -267,7 +267,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       repository: 'https://aws.github.io/eks-charts',
       namespace: albNamespace,
       release: 'aws-load-balancer-controller',
-      version: '1.2.0', // mapping to v2.2.0
+      version: '1.2.3', // mapping to v2.2.1
       wait: true,
       timeout: cdk.Duration.minutes(15),
       values: {
@@ -362,6 +362,84 @@ export class SonatypeNexus3Stack extends cdk.Stack {
 
     nexusServiceAccount.addToPolicy(s3BucketPolicy);
     nexusServiceAccount.addToPolicy(s3ObjectPolicy);
+
+    const albLogServiceAccountMapping = new cdk.CfnMapping(this, 'ALBServiceAccountMapping', {
+      mapping: {
+        'me-south-1': {
+          account: '076674570225',
+        },
+        'eu-south-1': {
+          account: '635631232127',
+        },
+        'ap-northeast-1': {
+          account: '582318560864',
+        },
+        'ap-northeast-2': {
+          account: '600734575887',
+        },
+        'ap-northeast-3': {
+          account: '383597477331',
+        },
+        'ap-south-1': {
+          account: '718504428378',
+        },
+        'ap-southeast-1': {
+          account: '114774131450',
+        },
+        'ap-southeast-2': {
+          account: '783225319266',
+        },
+        'ca-central-1': {
+          account: '985666609251',
+        },
+        'eu-central-1': {
+          account: '054676820928',
+        },
+        'eu-north-1': {
+          account: '897822967062',
+        },
+        'eu-west-1': {
+          account: '156460612806',
+        },
+        'eu-west-2': {
+          account: '652711504416',
+        },
+        'eu-west-3': {
+          account: '009996457667',
+        },
+        'sa-east-1': {
+          account: '507241528517',
+        },
+        'us-east-1': {
+          account: '127311923021',
+        },
+        'us-east-2': {
+          account: '033677994240',
+        },
+        'us-west-1': {
+          account: '027434742980',
+        },
+        'us-west-2': {
+          account: '797873946194',
+        },
+        'ap-east-1': {
+          account: '754344448648',
+        },
+        'af-south-1': {
+          account: '098369216593',
+        },
+        'cn-north-1': {
+          account: '638102146993',
+        },
+        'cn-northwest-1': {
+          account: '037604701340',
+        },
+      },
+    });
+    const albLogPrefix = 'albAccessLog';
+    accessLogBucket.grantPut(new iam.AccountPrincipal(albLogServiceAccountMapping.findInMap(cdk.Aws.REGION, 'account')),
+      `${albLogPrefix}/AWSLogs/${cdk.Aws.ACCOUNT_ID}/*`);
+
     const nexusPort = 8081;
     const healthcheckPath = '/';
     var albOptions = {
@@ -376,6 +454,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       'kubernetes.io/ingress.class': 'alb',
       'alb.ingress.kubernetes.io/tags': 'app=nexus3',
       'alb.ingress.kubernetes.io/subnets': vpc.publicSubnets.map(subnet => subnet.subnetId).join(','),
+      'alb.ingress.kubernetes.io/load-balancer-attributes': `access_logs.s3.enabled=true,access_logs.s3.bucket=${accessLogBucket.bucketName},access_logs.s3.prefix=${albLogPrefix}`,
     };
     const ingressRules : Array<any> = [
       {
