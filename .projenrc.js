@@ -18,6 +18,7 @@ const project = new AwsCdkTypeScriptApp({
     '@aws-cdk/aws-route53',
     '@aws-cdk/lambda-layer-awscli',
     '@aws-cdk/lambda-layer-kubectl',
+    '@aws-cdk/custom-resources',
     '@aws-cdk/cloud-assembly-schema',
     '@aws-cdk/cx-api',
   ], /* Which AWS CDK modules (those that start with "@aws-cdk/") this app uses. */
