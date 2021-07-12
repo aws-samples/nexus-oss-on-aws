@@ -1,6 +1,6 @@
 const { AwsCdkTypeScriptApp } = require('projen');
 const project = new AwsCdkTypeScriptApp({
-  cdkVersion: '1.108.0',
+  cdkVersion: '1.112.0',
   defaultReleaseBranch: 'master',
   name: 'sonatype-nexus3',
   appEntrypoint: 'sonatype-nexus3.ts',
