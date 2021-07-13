@@ -16,7 +16,7 @@ CFN_FAILED = "FAILED"
 # these are coming from the kubectl layer
 os.environ['PATH'] = '/opt/kubectl:/opt/awscli:' + os.environ['PATH']
 
-outdir = os.environ.get('TEST_OUTDIR', '/tmp')
+outdir = os.environ.get('TEST_OUTDIR', '/tmp') # nosec
 kubeconfig = os.path.join(outdir, 'kubeconfig')
 
 def handler(event, context):
