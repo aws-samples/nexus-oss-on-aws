@@ -221,6 +221,17 @@ export class SonatypeNexus3Stack extends cdk.Stack {
         });
       }
 
+      const template = new ec2.LaunchTemplate(this, 'EKSManagedNodeTemplate', {
+        blockDevices: [
+          {
+            deviceName: '/dev/xvda',
+            volume: ec2.BlockDeviceVolume.ebs(30, {
+              encrypted: true,
+            }),
+          },
+        ],
+        detailedMonitoring: true,
+      });
       nodeGroup = (cluster as eks.Cluster).addNodegroupCapacity('nodegroup', {
         nodegroupName: 'nexus3',
         instanceTypes: [
@@ -228,6 +239,9 @@ export class SonatypeNexus3Stack extends cdk.Stack {
         ],
         minSize: 1,
         maxSize: 3,
+        launchTemplateSpec: {
+          id: template.launchTemplateId!,
+        },
         labels: {
           usage: 'nexus3',
         },

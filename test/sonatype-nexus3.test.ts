@@ -218,8 +218,30 @@ describe('Nexus OSS stack', () => {
     expect(stack).toHaveResource('AWS::EC2::VPC', {
       CidrBlock: '10.0.0.0/16',
     });
-    expect(stack).toHaveResource('AWS::EKS::Nodegroup', {
+
+    expect(stack).toHaveResourceLike('AWS::EC2::LaunchTemplate', {
+      LaunchTemplateData: {
+        BlockDeviceMappings: [
+          {
+            DeviceName: '/dev/xvda',
+            Ebs: {
+              Encrypted: true,
+              VolumeSize: 30,
+            },
+          },
+        ],
+        Monitoring: {
+          Enabled: true,
+        },
+      },
+    });
+    expect(stack).toHaveResourceLike('AWS::EKS::Nodegroup', {
       InstanceTypes: ['m5.xlarge'],
+      LaunchTemplate: {
+        Id: {
+          Ref: 'EKSManagedNodeTemplate423DB07D',
+        },
+      },
     });
   });
 
