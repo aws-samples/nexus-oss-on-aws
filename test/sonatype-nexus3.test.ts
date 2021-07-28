@@ -114,7 +114,7 @@ describe('Nexus OSS stack', () => {
             },
             '","alb.ingress.kubernetes.io/load-balancer-attributes":"access_logs.s3.enabled=true,access_logs.s3.bucket=',
             {
-              Ref: 'BucketAccessLog9C13C446',
+              Ref: 'LogBucketCC3B17E8',
             },
             ',access_logs.s3.prefix=albAccessLog","alb.ingress.kubernetes.io/certificate-arn":"',
             {
@@ -281,7 +281,7 @@ describe('Nexus OSS stack', () => {
             },
             '","alb.ingress.kubernetes.io/load-balancer-attributes":"access_logs.s3.enabled=true,access_logs.s3.bucket=',
             {
-              Ref: 'BucketAccessLog9C13C446',
+              Ref: 'LogBucketCC3B17E8',
             },
             ',access_logs.s3.prefix=albAccessLog","alb.ingress.kubernetes.io/certificate-arn":"',
             {
@@ -508,13 +508,61 @@ describe('Nexus OSS stack', () => {
     });
   });
 
-  test('access log of ALB created by AWS load balancer controller.', () => {
+  test('bucket policy of log bucket, including, access log of ALB created by AWS load balancer controller, vpc flow logs.', () => {
     expect(stack).toHaveResourceLike('AWS::S3::BucketPolicy', {
       Bucket: {
-        Ref: 'BucketAccessLog9C13C446',
+        Ref: 'LogBucketCC3B17E8',
       },
       PolicyDocument: {
         Statement: [
+          {
+            Action: 's3:PutObject',
+            Condition: {
+              StringEquals: {
+                's3:x-amz-acl': 'bucket-owner-full-control',
+              },
+            },
+            Effect: 'Allow',
+            Principal: {
+              Service: 'delivery.logs.amazonaws.com',
+            },
+            Resource: {
+              'Fn::Join': [
+                '',
+                [
+                  {
+                    'Fn::GetAtt': [
+                      'LogBucketCC3B17E8',
+                      'Arn',
+                    ],
+                  },
+                  '/vpcFlowLogs/AWSLogs/',
+                  {
+                    Ref: 'AWS::AccountId',
+                  },
+                  '/*',
+                ],
+              ],
+            },
+            Sid: 'AWSLogDeliveryWrite',
+          },
+          {
+            Action: [
+              's3:GetBucketAcl',
+              's3:ListBucket',
+            ],
+            Effect: 'Allow',
+            Principal: {
+              Service: 'delivery.logs.amazonaws.com',
+            },
+            Resource: {
+              'Fn::GetAtt': [
+                'LogBucketCC3B17E8',
+                'Arn',
+              ],
+            },
+            Sid: 'AWSLogDeliveryCheck',
+          },
           {
             Action: [
               's3:PutObject*',
@@ -551,7 +599,7 @@ describe('Nexus OSS stack', () => {
                 [
                   {
                     'Fn::GetAtt': [
-                      'BucketAccessLog9C13C446',
+                      'LogBucketCC3B17E8',
                       'Arn',
                     ],
                   },
@@ -615,7 +663,7 @@ describe('Nexus OSS stack', () => {
             },
             '","alb.ingress.kubernetes.io/load-balancer-attributes":"access_logs.s3.enabled=true,access_logs.s3.bucket=',
             {
-              Ref: 'BucketAccessLog9C13C446',
+              Ref: 'LogBucketCC3B17E8',
             },
             ',access_logs.s3.prefix=albAccessLog"},"tls":{"enabled":false},"rules":[{"http":{"paths":[{"path":"/*","backend":{"serviceName":"nexus3-sonatype-nexus","servicePort":8081}}]}}]},"serviceAccount":{"create":false}}',
           ],
