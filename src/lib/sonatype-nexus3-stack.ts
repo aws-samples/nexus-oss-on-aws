@@ -88,6 +88,12 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       }
     }
 
+    const logBucket = new s3.Bucket(this, 'LogBucket', {
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+      serverAccessLogsPrefix: 'logBucketAccessLog',
+    });
+
     const vpcId = this.node.tryGetContext('vpcId');
     const vpc = vpcId ? ec2.Vpc.fromLookup(this, 'NexusOSSVpc', {
       vpcId: vpcId === 'default' ? undefined : vpcId,
@@ -95,15 +101,32 @@ export class SonatypeNexus3Stack extends cdk.Stack {
     }) : (() => {
       const newVpc = new ec2.Vpc(this, 'NexusOSSVpc', {
         maxAzs: 2,
-        gatewayEndpoints: {
-          s3: {
-            service: ec2.GatewayVpcEndpointAwsService.S3,
+      });
+      const flowLogPrefix = 'vpcFlowLogs';
+      newVpc.addFlowLog('VpcFlowlogs', {
+        destination: ec2.FlowLogDestination.toS3(logBucket, flowLogPrefix),
+      });
+      // https://docs.aws.amazon.com/vpc/latest/userguide/flow-logs-s3.html#flow-logs-s3-permissions
+      logBucket.addToResourcePolicy(new iam.PolicyStatement({
+        sid: 'AWSLogDeliveryWrite',
+        principals: [new iam.ServicePrincipal('delivery.logs.amazonaws.com')],
+        actions: ['s3:PutObject'],
+        resources: [logBucket.arnForObjects(`${flowLogPrefix}/AWSLogs/${cdk.Aws.ACCOUNT_ID}/*`)],
+        conditions: {
+          StringEquals: {
+            's3:x-amz-acl': 'bucket-owner-full-control',
           },
         },
-      });
-      newVpc.addFlowLog('VpcFlowlogs', {
-        destination: ec2.FlowLogDestination.toS3(),
-      });
+      }));
+      logBucket.addToResourcePolicy(new iam.PolicyStatement({
+        sid: 'AWSLogDeliveryCheck',
+        principals: [new iam.ServicePrincipal('delivery.logs.amazonaws.com')],
+        actions: [
+          's3:GetBucketAcl',
+          's3:ListBucket',
+        ],
+        resources: [logBucket.bucketArn],
+      }));
       return newVpc;
     })();
     if (this.azOfSubnets(vpc.publicSubnets) <= 1 ||
@@ -119,23 +142,38 @@ export class SonatypeNexus3Stack extends cdk.Stack {
     var nodeGroup: eks.Nodegroup;
     var eksVersion: cdk.CfnParameter;
 
-    const accessLogBucket = new s3.Bucket(this, 'BucketAccessLog', {
-      encryption: s3.BucketEncryption.S3_MANAGED,
-      removalPolicy: cdk.RemovalPolicy.RETAIN,
-      serverAccessLogsPrefix: 'accessLogBucketAccessLog',
-    });
     const nexusBlobBucket = new s3.Bucket(this, 'nexus3-blobstore', {
       removalPolicy: cdk.RemovalPolicy.RETAIN,
       encryption: s3.BucketEncryption.S3_MANAGED,
-      serverAccessLogsBucket: accessLogBucket,
+      serverAccessLogsBucket: logBucket,
       serverAccessLogsPrefix: 'blobstoreBucketAccessLog',
+      enforceSSL: true,
     });
+    if (vpc instanceof ec2.Vpc) {
+      const gatewayEndpoint = vpc.addGatewayEndpoint('s3', {
+        service: ec2.GatewayVpcEndpointAwsService.S3,
+      });
+      nexusBlobBucket.addToResourcePolicy(new iam.PolicyStatement({
+        effect: iam.Effect.DENY,
+        actions: ['s3:*'],
+        principals: [new iam.AccountPrincipal(cdk.Aws.ACCOUNT_ID)],
+        resources: [
+          nexusBlobBucket.bucketArn,
+          nexusBlobBucket.arnForObjects('*'),
+        ],
+        conditions: {
+          StringNotEquals: {
+            'aws:SourceVpce': gatewayEndpoint.vpcEndpointId,
+          },
+        },
+      }));
+    }
     const s3BucketPolicy = new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
       actions: [
         's3:ListBucket',
       ],
-      resources: ['*'],
+      resources: [nexusBlobBucket.bucketArn],
     });
     const s3ObjectPolicy = new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
@@ -255,6 +293,16 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       // install SSM agent as daemonset
       nodeGroup.role.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonSSMManagedInstanceCore'));
 
+      (cluster.node.findChild('Resource').node.findChild('CreationRole').node.findChild('DefaultPolicy')
+        .node.findChild('Resource') as cdk.CfnResource).addMetadata('cfn_nag', {
+        rules_to_suppress: [
+          {
+            id: 'W12',
+            reason: 'wildcard in policy is built by CDK',
+          },
+        ],
+      });
+
       var ssmManifests = request('GET', 'https://raw.githubusercontent.com/aws-samples/ssm-agent-daemonset-installer/541da0a68a96d5b2ce184724f3d35d22d9ac7236/setup.yaml')
         .getBody('utf-8');
 
@@ -277,10 +325,34 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       name: 'aws-load-balancer-controller',
       namespace: albNamespace,
     });
+    const customResourceRole = cdk.Stack.of(this).node.tryFindChild('Custom::AWSCDKOpenIdConnectProviderCustomResourceProvider');
+    if (customResourceRole) {
+      (customResourceRole.node.findChild('Role') as cdk.CfnResource).addMetadata('cfn_nag', {
+        rules_to_suppress: [
+          {
+            id: 'W11',
+            reason: 'wildcard in policy built by CDK',
+          },
+        ],
+      });
+    }
 
     const policyJson = request('GET', awsControllerPolicyUrl).getBody();
     ((JSON.parse(policyJson)).Statement as []).forEach((statement, _idx, _array) => {
-      albServiceAccount.addToPolicy(iam.PolicyStatement.fromJson(statement));
+      albServiceAccount.addToPrincipalPolicy(iam.PolicyStatement.fromJson(statement));
+    });
+    const albSAPolicy = albServiceAccount.role.node.children.filter(c => c instanceof iam.Policy)[0].node.defaultChild as iam.CfnPolicy;
+    albSAPolicy.addMetadata('cfn_nag', {
+      rules_to_suppress: [
+        {
+          id: 'W76',
+          reason: 'the policy statement is from official doc of AWS load balancer controller',
+        },
+        {
+          id: 'W12',
+          reason: 'the policy statement is from official doc of AWS load balancer controller',
+        },
+      ],
     });
     const awsLoadBalancerControllerChart = cluster.addHelmChart('AWSLoadBalancerController', {
       chart: 'aws-load-balancer-controller',
@@ -457,7 +529,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       },
     });
     const albLogPrefix = 'albAccessLog';
-    accessLogBucket.grantPut(new iam.AccountPrincipal(albLogServiceAccountMapping.findInMap(cdk.Aws.REGION, 'account')),
+    logBucket.grantPut(new iam.AccountPrincipal(albLogServiceAccountMapping.findInMap(cdk.Aws.REGION, 'account')),
       `${albLogPrefix}/AWSLogs/${cdk.Aws.ACCOUNT_ID}/*`);
 
     const nexusPort = 8081;
@@ -474,7 +546,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       'kubernetes.io/ingress.class': 'alb',
       'alb.ingress.kubernetes.io/tags': 'app=nexus3',
       'alb.ingress.kubernetes.io/subnets': vpc.publicSubnets.map(subnet => subnet.subnetId).join(','),
-      'alb.ingress.kubernetes.io/load-balancer-attributes': `access_logs.s3.enabled=true,access_logs.s3.bucket=${accessLogBucket.bucketName},access_logs.s3.prefix=${albLogPrefix}`,
+      'alb.ingress.kubernetes.io/load-balancer-attributes': `access_logs.s3.enabled=true,access_logs.s3.bucket=${logBucket.bucketName},access_logs.s3.prefix=${albLogPrefix}`,
     };
     const ingressRules : Array<any> = [
       {
@@ -770,6 +842,18 @@ export class SonatypeNexus3Stack extends cdk.Stack {
           node.addPropertyOverride('Environment.Variables.AWS_STS_REGIONAL_ENDPOINTS', 'regional');
         }
       },
+    });
+
+    // the hardcode id is copied from https://github.com/aws/aws-cdk/blob/099b5840cc5b45bad987b7e797e6009d6383a3a7/packages/%40aws-cdk/aws-logs/lib/log-retention.ts#L119
+    (cdk.Stack.of(this).node.findChild('LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a')
+      .node.findChild('ServiceRole').node.findChild('DefaultPolicy').node
+      .findChild('Resource') as cdk.CfnResource).addMetadata('cfn_nag', {
+      rules_to_suppress: [
+        {
+          id: 'W12',
+          reason: 'wildcard in policy is built by CDK',
+        },
+      ],
     });
 
     new cdk.CfnOutput(this, 'nexus-oss-s3-bucket-blobstore', {

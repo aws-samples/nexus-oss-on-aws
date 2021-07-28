@@ -1,0 +1,14 @@
+---
+RulesToSuppress:
+- id: W33
+  reason: allow assign public IPs in public subnet for solution
+- id: W58
+  reason: use managed policy AWSLambdaBasicExecutionRole to grant logs permission in solution
+- id: W89
+  reason: allow non VPC solution Lambda that are custom resource
+- id: W92
+  reason: allow no ReservedConcurrentExecutions configuration of solution Lambda that are custom resource
+- id: W5
+  reason: node group access internet is by design in solution
+- id: W40
+  reason: node group access internet is by design in solution
