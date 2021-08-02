@@ -228,6 +228,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       eksVersion = new cdk.CfnParameter(this, 'KubernetesVersion', {
         type: 'String',
         allowedValues: [
+          '1.21',
           '1.20',
           '1.19',
           '1.18',
