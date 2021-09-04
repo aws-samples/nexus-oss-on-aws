@@ -2,7 +2,10 @@ name: "Bnadit Check for Python code"
 
 on:
   pull_request: {}
-
+  workflow_dispatch: {}
+  workflow_run:
+    workflows:
+      - upgrade
 jobs:
   bandit:
     runs-on: ubuntu-latest
