@@ -5,6 +5,9 @@ name: integration test of nexus preconfigure lambda
       - master
   pull_request: {}
   workflow_dispatch: {}
+  workflow_run:
+    workflows:
+      - upgrade  
 jobs:
   lambda-integration-test:
     name: Lambda Integaration Test
@@ -36,7 +39,8 @@ jobs:
 
           pip install -r src/lambda.d/nexuspreconfigure/requirements.txt
 
-          pip install -r src/lambda.d/nexuspreconfigure-integration-test/requirements.txt
+          pip install -r
+          src/lambda.d/nexuspreconfigure-integration-test/requirements.txt
       - name: Fetch Nexus3 Password
         id: nexus3-pass
         run: |

@@ -2,6 +2,9 @@ name: Cfn-nag check
 'on':
   pull_request: {}
   workflow_dispatch: {}
+  workflow_run:
+    workflows:
+      - upgrade  
 jobs:
   cfn-nag:
     runs-on: ubuntu-latest

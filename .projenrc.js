@@ -1,6 +1,6 @@
 const { AwsCdkTypeScriptApp } = require('projen');
 const project = new AwsCdkTypeScriptApp({
-  cdkVersion: '1.116.0',
+  cdkVersion: '1.121.0',
   defaultReleaseBranch: 'master',
   name: 'sonatype-nexus3',
   appEntrypoint: 'sonatype-nexus3.ts',
@@ -64,6 +64,6 @@ project.tasks._tasks.synth._steps[0] = {
   exec: 'cdk synth -c createNewVpc=true',
 };
 project.addFields({
-  version: '1.2.0-mainline',
+  version: '1.3.0-mainline',
 });
 project.synth();
