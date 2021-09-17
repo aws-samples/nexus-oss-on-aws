@@ -71,6 +71,7 @@ project.tasks._tasks.synth._steps[0] = {
 };
 project.package.addField('resolutions', {
   'pac-resolver': '^5.0.0',
+  'set-value': '^4.0.1',
 });
 project.addFields({
   version: '1.3.0-mainline',
