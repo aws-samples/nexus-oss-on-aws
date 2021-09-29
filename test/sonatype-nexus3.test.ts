@@ -130,9 +130,17 @@ describe('Nexus OSS stack', () => {
       },
       Release: 'nexus3',
       Chart: 'sonatype-nexus',
-      Version: '5.1.2',
+      Version: '5.2.1',
       Namespace: 'default',
-      Repository: 'https://oteemo.github.io/charts/',
+      Repository: {
+        'Fn::FindInMap': [
+          'PartitionMapping',
+          {
+            Ref: 'AWS::Partition',
+          },
+          'nexusHelmChartRepo',
+        ],
+      },
       Wait: true,
       Timeout: '900s',
     });
@@ -363,8 +371,16 @@ describe('Nexus OSS stack', () => {
     expect(stack).toHaveResourceLike('Custom::AWSCDK-EKS-HelmChart', {
       Release: 'aws-load-balancer-controller',
       Chart: 'aws-load-balancer-controller',
-      Version: '1.2.3',
-      Repository: 'https://aws.github.io/eks-charts',
+      Version: '1.2.7',
+      Repository: {
+        'Fn::FindInMap': [
+          'PartitionMapping',
+          {
+            Ref: 'AWS::Partition',
+          },
+          'albHelmChartRepo',
+        ],
+      },
     });
   });
 
