@@ -33,10 +33,16 @@ export class SonatypeNexus3Stack extends cdk.Stack {
         'aws': {
           nexus: 'quay.io/travelaudience/docker-nexus',
           nexusProxy: 'quay.io/travelaudience/docker-nexus-proxy',
+          albHelmChartRepo: 'https://aws.github.io/eks-charts',
+          efsCSIHelmChartRepo: 'https://kubernetes-sigs.github.io/aws-efs-csi-driver/',
+          nexusHelmChartRepo: 'https://oteemo.github.io/charts/',
         },
         'aws-cn': {
           nexus: '048912060910.dkr.ecr.cn-northwest-1.amazonaws.com.cn/quay/travelaudience/docker-nexus',
           nexusProxy: '048912060910.dkr.ecr.cn-northwest-1.amazonaws.com.cn/quay/travelaudience/docker-nexus-proxy',
+          albHelmChartRepo: 'https://aws-gcr-solutions-assets.s3.cn-northwest-1.amazonaws.com.cn/helm/charts/eks-charts/',
+          efsCSIHelmChartRepo: 'https://aws-gcr-solutions-assets.s3.cn-northwest-1.amazonaws.com.cn/helm/charts/aws-efs-csi-driver/',
+          nexusHelmChartRepo: 'https://aws-gcr-solutions-assets.s3.cn-northwest-1.amazonaws.com.cn/helm/charts/oteemo/',
         },
       },
     });
@@ -357,10 +363,10 @@ export class SonatypeNexus3Stack extends cdk.Stack {
     });
     const awsLoadBalancerControllerChart = cluster.addHelmChart('AWSLoadBalancerController', {
       chart: 'aws-load-balancer-controller',
-      repository: 'https://aws.github.io/eks-charts',
+      repository: partitionMapping.findInMap(cdk.Aws.PARTITION, 'albHelmChartRepo'),
       namespace: albNamespace,
       release: 'aws-load-balancer-controller',
-      version: '1.2.3', // mapping to v2.2.1
+      version: '1.2.7', // mapping to v2.2.4
       wait: true,
       timeout: cdk.Duration.minutes(15),
       values: {
@@ -389,9 +395,9 @@ export class SonatypeNexus3Stack extends cdk.Stack {
     // deploy EFS, EFS CSI driver, PV
     const efsCSI = cluster.addHelmChart('EFSCSIDriver', {
       chart: 'aws-efs-csi-driver',
-      repository: 'https://kubernetes-sigs.github.io/aws-efs-csi-driver/',
+      repository: partitionMapping.findInMap(cdk.Aws.PARTITION, 'efsCSIHelmChartRepo'),
       release: 'aws-efs-csi-driver',
-      version: '2.1.1', // mapping to v1.3.1
+      version: '2.2.0', // mapping to v1.3.4
     });
     if (cluster instanceof eks.Cluster) {
       efsCSI.node.addDependency(nodeGroup!);
@@ -644,7 +650,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
     }
 
     const enableAutoConfigured: boolean = this.node.tryGetContext('enableAutoConfigured') || false;
-    const nexus3ChartVersion = '5.1.2';
+    const nexus3ChartVersion = '5.2.1';
 
     const nexus3PurgeFunc = new lambda_python.PythonFunction(this, 'Nexus3Purge', {
       description: 'Func purges the resources(such as pvc) left after deleting Nexus3 helm chart',
@@ -764,7 +770,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
     }
     const nexus3Chart = cluster.addHelmChart('Nexus3', {
       chart: 'sonatype-nexus',
-      repository: 'https://oteemo.github.io/charts/',
+      repository: partitionMapping.findInMap(cdk.Aws.PARTITION, 'nexusHelmChartRepo'),
       namespace: nexus3Namespace,
       release: nexus3ChartName,
       version: nexus3ChartVersion,
