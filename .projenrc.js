@@ -1,6 +1,6 @@
-const { AwsCdkTypeScriptApp, DependenciesUpgradeMechanism } = require('projen');
+const { AwsCdkTypeScriptApp } = require('projen');
 const project = new AwsCdkTypeScriptApp({
-  cdkVersion: '1.121.0',
+  cdkVersion: '1.126.0',
   defaultReleaseBranch: 'master',
   name: 'sonatype-nexus3',
   appEntrypoint: 'sonatype-nexus3.ts',
@@ -58,12 +58,13 @@ const project = new AwsCdkTypeScriptApp({
     'aws-eks',
     'eks',
   ],
-  depsUpgrade: DependenciesUpgradeMechanism.githubWorkflow({
+  depsUpgradeOptions: {
+    ignoreProjen: false,
     workflowOptions: {
       labels: ['auto-approve', 'auto-merge'],
       secret: 'PROJEN_GITHUB_TOKEN',
     },
-  }),
+  },
 });
 // tricky to override the default synth task
 project.tasks._tasks.synth._steps[0] = {
@@ -72,6 +73,7 @@ project.tasks._tasks.synth._steps[0] = {
 project.package.addField('resolutions', {
   'pac-resolver': '^5.0.0',
   'set-value': '^4.0.1',
+  'ansi-regex': '^5.0.1',
 });
 project.addFields({
   version: '1.3.0-mainline',
