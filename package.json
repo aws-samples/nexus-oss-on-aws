@@ -1,18 +1,18 @@
 {
   "name": "sonatype-nexus3",
   "scripts": {
+    "build": "npx projen build",
     "clobber": "npx projen clobber",
     "compile": "npx projen compile",
-    "test": "npx projen test",
-    "build": "npx projen build",
-    "test:watch": "npx projen test:watch",
-    "test:update": "npx projen test:update",
     "default": "npx projen default",
-    "eslint": "npx projen eslint",
-    "synth": "npx projen synth",
     "deploy": "npx projen deploy",
     "destroy": "npx projen destroy",
     "diff": "npx projen diff",
+    "eslint": "npx projen eslint",
+    "synth": "npx projen synth",
+    "test": "npx projen test",
+    "test:update": "npx projen test:update",
+    "test:watch": "npx projen test:watch",
     "upgrade": "npx projen upgrade",
     "projen": "npx projen"
   },
@@ -31,7 +31,7 @@
     "json-schema": "^0.3.0",
     "lodash": ">=4.17.21",
     "npm-check-updates": "^11",
-    "projen": "^0.32.3",
+    "projen": "^0.32.8",
     "ts-jest": "^26.5.6",
     "ts-node": "^9",
     "typescript": "^4.4.4"
