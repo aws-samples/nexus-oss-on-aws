@@ -2,19 +2,25 @@
   "tasks": {
     "build": {
       "name": "build",
-      "description": "Full release build (test+compile)",
+      "description": "Full release build",
       "steps": [
         {
-          "exec": "npx projen"
+          "spawn": "default"
         },
         {
-          "spawn": "test"
+          "spawn": "pre-compile"
         },
         {
           "spawn": "compile"
         },
         {
-          "spawn": "synth"
+          "spawn": "post-compile"
+        },
+        {
+          "spawn": "test"
+        },
+        {
+          "spawn": "package"
         }
       ]
     },
@@ -56,6 +62,7 @@
     },
     "default": {
       "name": "default",
+      "description": "Synthesize project files",
       "steps": [
         {
           "exec": "node .projenrc.js"
@@ -98,6 +105,23 @@
         }
       ]
     },
+    "package": {
+      "name": "package",
+      "description": "Creates the distribution package"
+    },
+    "post-compile": {
+      "name": "post-compile",
+      "description": "Runs after successful compilation",
+      "steps": [
+        {
+          "spawn": "synth"
+        }
+      ]
+    },
+    "pre-compile": {
+      "name": "pre-compile",
+      "description": "Prepare the project for compilation"
+    },
     "synth": {
       "name": "synth",
       "description": "Synthesizes your cdk app into cdk.out (part of \"yarn build\")",
@@ -111,9 +135,6 @@
       "name": "test",
       "description": "Run tests",
       "steps": [
-        {
-          "exec": "rm -fr lib/"
-        },
         {
           "exec": "jest --passWithNoTests --all --updateSnapshot"
         },
