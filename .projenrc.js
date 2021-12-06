@@ -1,5 +1,5 @@
-const { AwsCdkTypeScriptApp } = require('projen');
-const project = new AwsCdkTypeScriptApp({
+const { awscdk } = require('projen');
+const project = new awscdk.AwsCdkTypeScriptApp({
   cdkVersion: '1.126.0',
   defaultReleaseBranch: 'master',
   name: 'sonatype-nexus3',
