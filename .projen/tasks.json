@@ -24,6 +24,10 @@
         }
       ]
     },
+    "bundle": {
+      "name": "bundle",
+      "description": "Prepare assets"
+    },
     "clobber": {
       "name": "clobber",
       "description": "hard resets to HEAD of origin and cleans the local repo",
@@ -196,10 +200,13 @@
     },
     "watch": {
       "name": "watch",
-      "description": "Watch & compile in the background",
+      "description": "Watches changes in your source code and rebuilds and deploys to the current account",
       "steps": [
         {
-          "exec": "tsc --build -w"
+          "exec": "cdk deploy --hotswap"
+        },
+        {
+          "exec": "cdk watch"
         }
       ]
     }
