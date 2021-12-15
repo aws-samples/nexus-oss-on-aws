@@ -48,6 +48,7 @@ junit.xml
 /lib
 /dist/
 !/.eslintrc.json
+/assets/
 !/cdk.json
 /cdk.out/
 .cdk.staging/
