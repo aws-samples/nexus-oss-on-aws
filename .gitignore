@@ -39,6 +39,7 @@ junit.xml
 /coverage/
 !/.github/workflows/build.yml
 !/.mergify.yml
+!/.github/workflows/upgrade.yml
 !/.github/pull_request_template.md
 !/test/
 !/tsconfig.json
@@ -52,4 +53,3 @@ junit.xml
 /cdk.out/
 .cdk.staging/
 .parcel-cache/
-!/.github/workflows/upgrade.yml
