@@ -18,7 +18,6 @@ import {
 import { AwsCliLayer } from '@aws-cdk/lambda-layer-awscli';
 import { KubectlLayer } from '@aws-cdk/lambda-layer-kubectl';
 import * as pjson from '../../package.json';
-
 const assert = require('assert').strict;
 
 export class SonatypeNexus3Stack extends cdk.Stack {
@@ -234,10 +233,10 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       eksVersion = new cdk.CfnParameter(this, 'KubernetesVersion', {
         type: 'String',
         allowedValues: [
+          '1.22',
           '1.21',
           '1.20',
-          '1.19',
-          '1.18',
+          '1.19'
         ],
         default: '1.20',
         description: 'The version of Kubernetes.',
@@ -324,7 +323,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
     }
 
     // install AWS load balancer via Helm charts
-    const awsLoadBalancerControllerVersion = 'v2.2.1';
+    const awsLoadBalancerControllerVersion = 'v2.4.1';
     const awsControllerBaseResourceBaseUrl = `https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/${awsLoadBalancerControllerVersion}/docs`;
     const awsControllerPolicyUrl = `${awsControllerBaseResourceBaseUrl}/install/iam_policy${targetRegion.startsWith('cn-') ? '_cn' : ''}.json`;
     const albNamespace = 'kube-system';
@@ -366,7 +365,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       repository: partitionMapping.findInMap(cdk.Aws.PARTITION, 'albHelmChartRepo'),
       namespace: albNamespace,
       release: 'aws-load-balancer-controller',
-      version: '1.2.7', // mapping to v2.2.4
+      version: '1.4.1', // mapping to v2.4.1
       wait: true,
       timeout: cdk.Duration.minutes(15),
       values: {
@@ -560,10 +559,15 @@ export class SonatypeNexus3Stack extends cdk.Stack {
         http: {
           paths: [
             {
-              path: '/*',
+              path: '/',
+	      pathType: 'Prefix',
               backend: {
-                serviceName: `${nexus3ChartName}-sonatype-nexus`,
-                servicePort: nexusPort,
+                service: {
+                  name: `${nexus3ChartName}-sonatype-nexus`,
+		  port: {
+		    number: nexusPort,
+		},
+               },
               },
             },
           ],
@@ -584,17 +588,27 @@ export class SonatypeNexus3Stack extends cdk.Stack {
         http: {
           paths: [
             {
-              path: '/*',
+              path: '/',
+	      pathType: 'Prefix',
               backend: {
-                serviceName: 'ssl-redirect',
-                servicePort: 'use-annotation',
+                service: {
+                  name: 'ssl-redirect',
+                  port: {
+		    number:  'use-annotation',
+                },
               },
             },
+	   },
             {
-              path: '/*',
+              path: '/',
+	      pathType: 'Prefix',
               backend: {
-                serviceName: `${nexus3ChartName}-sonatype-nexus`,
-                servicePort: nexusPort,
+                service :{
+                  name: `${nexus3ChartName}-sonatype-nexus`,
+                  port: {
+		    number:  nexusPort,
+           	 },
+	       },
               },
             },
           ],
@@ -650,7 +664,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
     }
 
     const enableAutoConfigured: boolean = this.node.tryGetContext('enableAutoConfigured') || false;
-    const nexus3ChartVersion = '5.2.1';
+    const nexus3ChartVersion = '5.4.0';
 
     const nexus3PurgeFunc = new lambda_python.PythonFunction(this, 'Nexus3Purge', {
       description: 'Func purges the resources(such as pvc) left after deleting Nexus3 helm chart',
