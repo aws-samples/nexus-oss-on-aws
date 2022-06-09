@@ -30,6 +30,7 @@ const project = new awscdk.AwsCdkTypeScriptApp({
   devDeps: [
     'lodash@>=4.17.21',
   ], /* Build dependencies for this module. */
+  typescriptVersion: '~4.6.0', /* TypeScript version to use. */
   // packageName: undefined,            /* The "name" in package.json. */
   // projectType: ProjectType.UNKNOWN,  /* Which type of project this is (library/app). */
   // releaseWorkflow: undefined,        /* Define a GitHub workflow for releasing from "main" when new versions are bumped. */
@@ -70,11 +71,13 @@ const project = new awscdk.AwsCdkTypeScriptApp({
 project.tasks._tasks.synth._steps[0] = {
   exec: 'cdk synth -c createNewVpc=true',
 };
-project.package.addField('resolutions', {
-  'pac-resolver': '^5.0.0',
-  'set-value': '^4.0.1',
-  'ansi-regex': '^5.0.1',
-});
+// project.package.addField('resolutions',
+//   Object.assign({}, project.package.manifest.resolutions ? project.package.manifest.resolutions : {}, {
+//     'pac-resolver': '^5.0.0',
+//     'set-value': '^4.0.1',
+//     'ansi-regex': '^5.0.1',
+//   })
+// );
 project.addFields({
   version: '1.3.0-mainline',
 });
