@@ -130,7 +130,7 @@ describe('Nexus OSS stack', () => {
       },
       Release: 'nexus3',
       Chart: 'sonatype-nexus',
-      Version: '5.2.1',
+      Version: '5.4.0',
       Namespace: 'default',
       Repository: {
         'Fn::FindInMap': [
@@ -371,7 +371,7 @@ describe('Nexus OSS stack', () => {
     expect(stack).toHaveResourceLike('Custom::AWSCDK-EKS-HelmChart', {
       Release: 'aws-load-balancer-controller',
       Chart: 'aws-load-balancer-controller',
-      Version: '1.2.7',
+      Version: '1.4.1',
       Repository: {
         'Fn::FindInMap': [
           'PartitionMapping',
