@@ -566,7 +566,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
 		  port: {
 		    number: nexusPort,
 	       },
-               },
+                },
               },
             },
           ],
