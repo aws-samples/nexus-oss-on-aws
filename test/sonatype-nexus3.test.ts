@@ -124,13 +124,13 @@ describe('Nexus OSS stack', () => {
             {
               Ref: 'DomainName',
             },
-            '","http":{"paths":[{"path":"/*","backend":{"serviceName":"ssl-redirect","servicePort":"use-annotation"}},{"path":"/*","backend":{"serviceName":"nexus3-sonatype-nexus","servicePort":8081}}]}},{"http":{"paths":[{"path":"/*","backend":{"serviceName":"nexus3-sonatype-nexus","servicePort":8081}}]}}]},"serviceAccount":{"create":false}}',
+	          '","http":{"paths":[{"path":"/","pathType":"Prefix","backend":{"service":{"name":"ssl-redirect","port":{"number":"use-annotation"}}}},{"path":"/","pathType":"Prefix","backend":{"service":{"name":"nexus3-sonatype-nexus","port":{"number":8081}}}}]}},{"http":{"paths":[{"path":"/","pathType":"Prefix","backend":{"service":{"name":"nexus3-sonatype-nexus","port":{"number":8081}}}}]}}]},"serviceAccount":{"create":false}}',
           ],
         ],
       },
       Release: 'nexus3',
       Chart: 'sonatype-nexus',
-      Version: '5.2.1',
+      Version: '5.4.0',
       Namespace: 'default',
       Repository: {
         'Fn::FindInMap': [
@@ -299,7 +299,7 @@ describe('Nexus OSS stack', () => {
             {
               Ref: 'DomainName',
             },
-            '","http":{"paths":[{"path":"/*","backend":{"serviceName":"ssl-redirect","servicePort":"use-annotation"}},{"path":"/*","backend":{"serviceName":"nexus3-sonatype-nexus","servicePort":8081}}]}},{"http":{"paths":[{"path":"/*","backend":{"serviceName":"nexus3-sonatype-nexus","servicePort":8081}}]}}]},"serviceAccount":{"create":false},"config":{"enabled":true,"data":{"nexus.properties":"nexus.scripts.allowCreation=true"}},"deployment":{"additionalVolumeMounts":[{"mountPath":"/nexus-data/etc/nexus.properties","subPath":"nexus.properties","name":"sonatype-nexus-conf"}]}}',
+            '","http":{"paths":[{"path":"/","pathType":"Prefix","backend":{"service":{"name":"ssl-redirect","port":{"number":"use-annotation"}}}},{"path":"/","pathType":"Prefix","backend":{"service":{"name":"nexus3-sonatype-nexus","port":{"number":8081}}}}]}},{"http":{"paths":[{"path":"/","pathType":"Prefix","backend":{"service":{"name":"nexus3-sonatype-nexus","port":{"number":8081}}}}]}}]},"serviceAccount":{"create":false},"config":{"enabled":true,"data":{"nexus.properties":"nexus.scripts.allowCreation=true"}},"deployment":{"additionalVolumeMounts":[{"mountPath":"/nexus-data/etc/nexus.properties","subPath":"nexus.properties","name":"sonatype-nexus-conf"}]}}',
           ],
         ],
       },
@@ -371,7 +371,7 @@ describe('Nexus OSS stack', () => {
     expect(stack).toHaveResourceLike('Custom::AWSCDK-EKS-HelmChart', {
       Release: 'aws-load-balancer-controller',
       Chart: 'aws-load-balancer-controller',
-      Version: '1.2.7',
+      Version: '1.4.1',
       Repository: {
         'Fn::FindInMap': [
           'PartitionMapping',
@@ -681,7 +681,7 @@ describe('Nexus OSS stack', () => {
             {
               Ref: 'LogBucketCC3B17E8',
             },
-            ',access_logs.s3.prefix=albAccessLog"},"tls":{"enabled":false},"rules":[{"http":{"paths":[{"path":"/*","backend":{"serviceName":"nexus3-sonatype-nexus","servicePort":8081}}]}}]},"serviceAccount":{"create":false}}',
+            ',access_logs.s3.prefix=albAccessLog"},"tls":{"enabled":false},"rules":[{"http":{"paths":[{"path":"/","pathType":"Prefix","backend":{"service":{"name":"nexus3-sonatype-nexus","port":{"number":8081}}}}]}}]},"serviceAccount":{"create":false}}',
           ],
         ],
       },
