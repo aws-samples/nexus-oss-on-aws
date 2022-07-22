@@ -55,7 +55,7 @@ jobs:
           pytest -m integration
     services:
       nexus:
-        image: 'quay.io/travelaudience/docker-nexus:3.27.0'
+        image: 'quay.io/travelaudience/docker-nexus:3.37.3-02'
         ports:
           - '8081:8081'
         options: >-
