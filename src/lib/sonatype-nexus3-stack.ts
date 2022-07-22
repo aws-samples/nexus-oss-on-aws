@@ -590,24 +590,24 @@ export class SonatypeNexus3Stack extends cdk.Stack {
               path: '/',
 	      pathType: 'Prefix',
               backend: {
-                service :{
+                service: {
                   name: 'ssl-redirect',
                   port: {
 		    number: 'use-annotation',
-                },
+		   },
+		 },
               },
             },
-	   },
             {
               path: '/',
 	      pathType: 'Prefix',
               backend: {
-                service :{
+                service: {
                   name: `${nexus3ChartName}-sonatype-nexus`,
                   port: {
-		    number:  nexusPort,
+		    number: nexusPort,
            	 },
-	       },
+	        },
               },
             },
           ],
