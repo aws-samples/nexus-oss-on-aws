@@ -235,8 +235,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
         allowedValues: [
           '1.22',
           '1.21',
-          '1.20',
-          '1.19'
+          '1.20'
         ],
         default: '1.20',
         description: 'The version of Kubernetes.',
