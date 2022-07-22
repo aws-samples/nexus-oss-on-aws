@@ -235,7 +235,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
         allowedValues: [
           '1.22',
           '1.21',
-          '1.20'
+          '1.20',
         ],
         default: '1.20',
         description: 'The version of Kubernetes.',
@@ -565,7 +565,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
                   name: `${nexus3ChartName}-sonatype-nexus`,
 		  port: {
 		    number: nexusPort,
-		},
+	       },
                },
               },
             },
@@ -590,10 +590,10 @@ export class SonatypeNexus3Stack extends cdk.Stack {
               path: '/',
 	      pathType: 'Prefix',
               backend: {
-                service: {
+                service :{
                   name: 'ssl-redirect',
                   port: {
-		    number:  'use-annotation',
+		    number: 'use-annotation',
                 },
               },
             },
