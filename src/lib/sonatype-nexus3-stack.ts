@@ -1,28 +1,29 @@
 /* eslint @typescript-eslint/no-require-imports: "off" */
-import * as path from 'path';
-import * as certmgr from '@aws-cdk/aws-certificatemanager';
-import * as ec2 from '@aws-cdk/aws-ec2';
-import * as efs from '@aws-cdk/aws-efs';
-import * as eks from '@aws-cdk/aws-eks';
-import * as iam from '@aws-cdk/aws-iam';
-import * as lambda from '@aws-cdk/aws-lambda';
-import * as lambda_python from '@aws-cdk/aws-lambda-python';
-import * as logs from '@aws-cdk/aws-logs';
-import * as route53 from '@aws-cdk/aws-route53';
-import * as s3 from '@aws-cdk/aws-s3';
-import * as cdk from '@aws-cdk/core';
+import * as cdk from 'aws-cdk-lib';
+import * as certmgr from 'aws-cdk-lib/aws-certificatemanager';
+import * as ec2 from 'aws-cdk-lib/aws-ec2';
+import * as efs from 'aws-cdk-lib/aws-efs';
+import * as eks from 'aws-cdk-lib/aws-eks';
+import * as iam from 'aws-cdk-lib/aws-iam';
+import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as logs from 'aws-cdk-lib/aws-logs';
+import * as route53 from 'aws-cdk-lib/aws-route53';
+import * as s3 from 'aws-cdk-lib/aws-s3';
 import {
   AwsCustomResource,
   AwsCustomResourcePolicy,
-} from '@aws-cdk/custom-resources';
-import { AwsCliLayer } from '@aws-cdk/lambda-layer-awscli';
-import { KubectlLayer } from '@aws-cdk/lambda-layer-kubectl';
+} from 'aws-cdk-lib/custom-resources';
+import { AwsCliLayer } from 'aws-cdk-lib/lambda-layer-awscli';
+import { KubectlLayer } from 'aws-cdk-lib/lambda-layer-kubectl';
+import { IConstruct, Construct } from 'constructs';
+// @ts-ignore
 import * as pjson from '../../package.json';
+
 const assert = require('assert').strict;
 
 export class SonatypeNexus3Stack extends cdk.Stack {
 
-  constructor(scope: cdk.Construct, id: string, props?: cdk.StackProps) {
+  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
     const targetRegion = this.node.tryGetContext('region') ?? 'us-east-1';
@@ -457,8 +458,8 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       namespace: nexus3Namespace,
     });
 
-    nexusServiceAccount.addToPolicy(s3BucketPolicy);
-    nexusServiceAccount.addToPolicy(s3ObjectPolicy);
+    nexusServiceAccount.addToPrincipalPolicy(s3BucketPolicy);
+    nexusServiceAccount.addToPrincipalPolicy(s3ObjectPolicy);
 
     const albLogServiceAccountMapping = new cdk.CfnMapping(this, 'ALBServiceAccountMapping', {
       mapping: {
@@ -573,7 +574,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
         },
       },
     ];
-    var externalDNSResource: cdk.Construct;
+    var externalDNSResource: Construct;
     if (certificate) {
       Object.assign(albOptions, {
         'alb.ingress.kubernetes.io/certificate-arn': certificate.certificateArn,
@@ -637,8 +638,8 @@ export class SonatypeNexus3Stack extends cdk.Stack {
 
         resources: [hostedZone!.hostedZoneArn!],
       });
-      externalDNSServiceAccount.addToPolicy(r53ListPolicy);
-      externalDNSServiceAccount.addToPolicy(r53UpdateRecordPolicy!);
+      externalDNSServiceAccount.addToPrincipalPolicy(r53ListPolicy);
+      externalDNSServiceAccount.addToPrincipalPolicy(r53UpdateRecordPolicy!);
 
       const externalDNSResources = yaml.safeLoadAll(
         request('GET', `${awsControllerBaseResourceBaseUrl}/examples/external-dns.yaml`)
@@ -665,11 +666,10 @@ export class SonatypeNexus3Stack extends cdk.Stack {
     const enableAutoConfigured: boolean = this.node.tryGetContext('enableAutoConfigured') || false;
     const nexus3ChartVersion = '5.4.0';
 
-    const nexus3PurgeFunc = new lambda_python.PythonFunction(this, 'Nexus3Purge', {
+    const nexus3PurgeFunc = new lambda.Function(this, 'Nexus3Purge', {
       description: 'Func purges the resources(such as pvc) left after deleting Nexus3 helm chart',
-      entry: path.join(__dirname, '../lambda.d/nexus3-purge'),
-      index: 'index.py',
-      handler: 'handler',
+      code: lambda.Code.fromAsset('src/lambda.d/nexus3-purge'),
+      handler: 'index.handler',
       runtime: lambda.Runtime.PYTHON_3_7,
       environment: cluster.kubectlEnvironment,
       logRetention: logs.RetentionDays.ONE_MONTH,
@@ -810,10 +810,9 @@ export class SonatypeNexus3Stack extends cdk.Stack {
     if (enableAutoConfigured) {
       const nexusEndpointHostname = `http://${albAddress.value}`;
       if (nexusEndpointHostname) {
-        const autoConfigureFunc = new lambda_python.PythonFunction(this, 'Neuxs3AutoCofingure', {
-          entry: path.join(__dirname, '../lambda.d/nexuspreconfigure'),
-          index: 'index.py',
-          handler: 'handler',
+        const autoConfigureFunc = new lambda.Function(this, 'Neuxs3AutoCofingure', {
+          code: lambda.Code.fromAsset('src/lambda.d/nexuspreconfigure'),
+          handler: 'index.handler',
           runtime: lambda.Runtime.PYTHON_3_8,
           logRetention: logs.RetentionDays.ONE_MONTH,
           timeout: cdk.Duration.minutes(5),
@@ -857,7 +856,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
     }
 
     cdk.Aspects.of(cdk.Stack.of(cluster)).add({
-      visit: (node: cdk.IConstruct) => {
+      visit: (node: IConstruct) => {
         if (node instanceof lambda.CfnFunction) {
           node.addPropertyOverride('Environment.Variables.AWS_STS_REGIONAL_ENDPOINTS', 'regional');
         }
