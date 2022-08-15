@@ -372,7 +372,7 @@ describe('Nexus OSS stack', () => {
     Template.fromStack(stack).hasResourceProperties('Custom::AWSCDK-EKS-HelmChart', {
       Release: 'aws-load-balancer-controller',
       Chart: 'aws-load-balancer-controller',
-      Version: '1.4.1',
+      Version: '2.4.3',
       Repository: {
         'Fn::FindInMap': [
           'PartitionMapping',
