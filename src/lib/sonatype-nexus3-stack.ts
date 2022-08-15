@@ -9,10 +9,6 @@ import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import * as route53 from 'aws-cdk-lib/aws-route53';
 import * as s3 from 'aws-cdk-lib/aws-s3';
-import {
-  AwsCustomResource,
-  AwsCustomResourcePolicy,
-} from 'aws-cdk-lib/custom-resources';
 import { AwsCliLayer } from 'aws-cdk-lib/lambda-layer-awscli';
 import { KubectlLayer } from 'aws-cdk-lib/lambda-layer-kubectl';
 import { IConstruct, Construct } from 'constructs';
@@ -249,8 +245,12 @@ export class SonatypeNexus3Stack extends cdk.Stack {
         mastersRole: clusterAdmin,
         version: eks.KubernetesVersion.of(eksVersion.valueAsString),
         coreDnsComputeType: isFargetEnabled ? eks.CoreDnsComputeType.FARGATE : eks.CoreDnsComputeType.EC2,
+        clusterLogging: [
+          eks.ClusterLoggingTypes.API,
+          eks.ClusterLoggingTypes.AUTHENTICATOR,
+          eks.ClusterLoggingTypes.SCHEDULER,
+        ],
       });
-      this.setupClusterLogging(cluster);
 
       if (isFargetEnabled) {
         (cluster as eks.Cluster).addFargateProfile('FargetProfile', {
@@ -966,59 +966,5 @@ export class SonatypeNexus3Stack extends cdk.Stack {
 
   private azOfSubnets(subnets: ec2.ISubnet[]): number {
     return new Set(subnets.map(subnet => subnet.availabilityZone)).size;
-  }
-
-  setupClusterLogging(cluster: eks.ICluster): void {
-    new AwsCustomResource(this, 'ClusterLogsEnabler', {
-      policy: AwsCustomResourcePolicy.fromSdkCalls({
-        resources: [`${cluster.clusterArn}/update-config`],
-      }),
-      onCreate: {
-        physicalResourceId: { id: `${cluster.clusterArn}/LogsEnabler` },
-        service: 'EKS',
-        action: 'updateClusterConfig',
-        region: this.region,
-        parameters: {
-          name: cluster.clusterName,
-          logging: {
-            clusterLogging: [
-              {
-                enabled: true,
-                types: [
-                  'api',
-                  'audit',
-                  'authenticator',
-                  'controllerManager',
-                  'scheduler',
-                ],
-              },
-            ],
-          },
-        },
-      },
-      onDelete: {
-        physicalResourceId: { id: `${cluster.clusterArn}/LogsEnabler` },
-        service: 'EKS',
-        action: 'updateClusterConfig',
-        region: this.region,
-        parameters: {
-          name: cluster.clusterName,
-          logging: {
-            clusterLogging: [
-              {
-                enabled: false,
-                types: [
-                  'api',
-                  'audit',
-                  'authenticator',
-                  'controllerManager',
-                  'scheduler',
-                ],
-              },
-            ],
-          },
-        },
-      },
-    });
   }
 }
