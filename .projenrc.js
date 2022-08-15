@@ -1,27 +1,10 @@
 const { awscdk } = require('projen');
 const project = new awscdk.AwsCdkTypeScriptApp({
-  cdkVersion: '1.126.0',
+  cdkVersion: '2.37.1',
   defaultReleaseBranch: 'master',
   name: 'sonatype-nexus3',
   appEntrypoint: 'sonatype-nexus3.ts',
   cdkVersionPinning: true,
-  cdkDependencies: [
-    '@aws-cdk/aws-certificatemanager',
-    '@aws-cdk/aws-ec2',
-    '@aws-cdk/aws-efs',
-    '@aws-cdk/aws-eks',
-    '@aws-cdk/aws-iam',
-    '@aws-cdk/aws-lambda',
-    '@aws-cdk/aws-lambda-python',
-    '@aws-cdk/aws-logs',
-    '@aws-cdk/aws-s3',
-    '@aws-cdk/aws-route53',
-    '@aws-cdk/lambda-layer-awscli',
-    '@aws-cdk/lambda-layer-kubectl',
-    '@aws-cdk/custom-resources',
-    '@aws-cdk/cloud-assembly-schema',
-    '@aws-cdk/cx-api',
-  ], /* Which AWS CDK modules (those that start with "@aws-cdk/") this app uses. */
   deps: [
     'js-yaml@^3.14.1',
     'sync-request@^6.1.0',
