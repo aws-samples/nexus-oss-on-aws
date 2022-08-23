@@ -365,7 +365,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       repository: partitionMapping.findInMap(cdk.Aws.PARTITION, 'albHelmChartRepo'),
       namespace: albNamespace,
       release: 'aws-load-balancer-controller',
-      version: '1.4.1', // mapping to v2.4.1
+      version: '1.4.4', // mapping to v2.4.1
       wait: true,
       timeout: cdk.Duration.minutes(15),
       values: {
