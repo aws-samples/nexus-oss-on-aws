@@ -197,14 +197,18 @@ export class SonatypeNexus3Stack extends cdk.Stack {
     });
 
     if (importedEks) {
-      if (!vpcId) {throw new Error('Context variable "vpcId" must be specified for imported EKS cluster.');}
+      if (!vpcId) {
+        throw new Error('Context variable "vpcId" must be specified for imported EKS cluster.');
+      }
 
       const clusterName = this.node.tryGetContext('eksClusterName');
       const kubectlRoleArn = this.node.tryGetContext('eksKubectlRoleArn');
       const openIdConnectProviderArn = this.node.tryGetContext('eksOpenIdConnectProviderArn');
       const nodeGroupRoleArn = this.node.tryGetContext('nodeGroupRoleArn');
 
-      if (!clusterName || !kubectlRoleArn || !openIdConnectProviderArn || !nodeGroupRoleArn) {throw new Error('Context variables "eksClusterName", "eksKubectlRoleArn", "eksOpenIdConnectProviderArn", "nodeGroupRoleArn" must be specified for imported EKS cluster.');}
+      if (!clusterName || !kubectlRoleArn || !openIdConnectProviderArn || !nodeGroupRoleArn) {
+        throw new Error('Context variables "eksClusterName", "eksKubectlRoleArn", "eksOpenIdConnectProviderArn", "nodeGroupRoleArn" must be specified for imported EKS cluster.');
+      }
 
       cluster = eks.Cluster.fromClusterAttributes(this, 'ImportedEKS', {
         clusterName,
@@ -323,7 +327,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
     }
 
     // install AWS load balancer via Helm charts
-    const awsLoadBalancerControllerVersion = 'v2.4.1';
+    const awsLoadBalancerControllerVersion = 'v2.4.3';
     const awsControllerBaseResourceBaseUrl = `https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/${awsLoadBalancerControllerVersion}/docs`;
     const awsControllerPolicyUrl = `${awsControllerBaseResourceBaseUrl}/install/iam_policy${targetRegion.startsWith('cn-') ? '_cn' : ''}.json`;
     const albNamespace = 'kube-system';
@@ -365,7 +369,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       repository: partitionMapping.findInMap(cdk.Aws.PARTITION, 'albHelmChartRepo'),
       namespace: albNamespace,
       release: 'aws-load-balancer-controller',
-      version: '1.4.4', // mapping to v2.4.1
+      version: '1.4.4', // mapping to v2.4.3
       wait: true,
       timeout: cdk.Duration.minutes(15),
       values: {
@@ -554,19 +558,19 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       'alb.ingress.kubernetes.io/subnets': vpc.publicSubnets.map(subnet => subnet.subnetId).join(','),
       'alb.ingress.kubernetes.io/load-balancer-attributes': `access_logs.s3.enabled=true,access_logs.s3.bucket=${logBucket.bucketName},access_logs.s3.prefix=${albLogPrefix}`,
     };
-    const ingressRules : Array<any> = [
+    const ingressRules: Array<any> = [
       {
         http: {
           paths: [
             {
               path: '/',
-	      pathType: 'Prefix',
+              pathType: 'Prefix',
               backend: {
                 service: {
                   name: `${nexus3ChartName}-sonatype-nexus`,
-		  port: {
-		    number: nexusPort,
-	       },
+                  port: {
+                    number: nexusPort,
+                  },
                 },
               },
             },
@@ -580,7 +584,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
         'alb.ingress.kubernetes.io/certificate-arn': certificate.certificateArn,
         'alb.ingress.kubernetes.io/ssl-policy': 'ELBSecurityPolicy-TLS-1-2-Ext-2018-06',
         'alb.ingress.kubernetes.io/listen-ports': '[{"HTTP": 80}, {"HTTPS": 443}]',
-        'alb.ingress.kubernetes.io/actions.ssl-redirect': '{"Type": "redirect", "RedirectConfig": { "Protocol": "HTTPS", "Port": "443", "StatusCode": "HTTP_301"}}',
+        'alb.ingress.kubernetes.io/actions.ssl-redirect': '{"type": "redirect", "redirectConfig": { "protocol": "HTTPS", "port": "443", "statusCode": "HTTP_301"}}',
       });
 
       ingressRules.splice(0, 0, {
@@ -589,26 +593,26 @@ export class SonatypeNexus3Stack extends cdk.Stack {
           paths: [
             {
               path: '/',
-	      pathType: 'Prefix',
+              pathType: 'Exact',
               backend: {
                 service: {
                   name: 'ssl-redirect',
                   port: {
-		    number: 'use-annotation',
-		   },
-		 },
+                    name: 'use-annotation',
+                  },
+                },
               },
             },
             {
               path: '/',
-	      pathType: 'Prefix',
+              pathType: 'Exact',
               backend: {
                 service: {
                   name: `${nexus3ChartName}-sonatype-nexus`,
                   port: {
-		    number: nexusPort,
-           	 },
-	        },
+                    number: nexusPort,
+                  },
+                },
               },
             },
           ],
@@ -645,7 +649,9 @@ export class SonatypeNexus3Stack extends cdk.Stack {
         request('GET', `${awsControllerBaseResourceBaseUrl}/examples/external-dns.yaml`)
           .getBody('utf-8').replace('external-dns-test.my-org.com', r53Domain ?? '')
           .replace('my-identifier', 'nexus3'))
-        .filter((res: any) => { return res.kind != 'ServiceAccount'; })
+        .filter((res: any) => {
+          return res.kind != 'ServiceAccount';
+        })
         .map((res: any) => {
           if (res.kind === 'Deployment') {
             res.spec.template.spec.containers[0].env = [
@@ -848,7 +854,9 @@ export class SonatypeNexus3Stack extends cdk.Stack {
               }
 
             });
-            nexus3AutoConfigureCR.node.children.forEach(r => { (r as cdk.CfnResource).cfnOptions.condition = eksV119; });
+            nexus3AutoConfigureCR.node.children.forEach(r => {
+              (r as cdk.CfnResource).cfnOptions.condition = eksV119;
+            });
           }
         };
         addCondition();
