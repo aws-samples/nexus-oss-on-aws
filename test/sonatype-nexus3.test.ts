@@ -83,8 +83,7 @@ describe('Nexus OSS stack', () => {
   });
 
   test('Nexus Stack is created', () => {
-    Template.fromStack(stack).hasResource('AWS::CloudFormation::Stack', {
-    });
+    Template.fromStack(stack).hasResource('AWS::CloudFormation::Stack', {});
 
     Template.fromStack(stack).hasResourceProperties('Custom::AWSCDK-EKS-HelmChart', {
       Values: {
@@ -121,11 +120,11 @@ describe('Nexus OSS stack', () => {
             {
               Ref: 'SSLCertificate2E93C565',
             },
-            '","alb.ingress.kubernetes.io/ssl-policy":"ELBSecurityPolicy-TLS-1-2-Ext-2018-06","alb.ingress.kubernetes.io/actions.ssl-redirect":"{\\"Type\\": \\"redirect\\", \\"RedirectConfig\\": { \\"Protocol\\": \\"HTTPS\\", \\"Port\\": \\"443\\", \\"StatusCode\\": \\"HTTP_301\\"}}"},"tls":{"enabled":false},"rules":[{"host":"',
+            '","alb.ingress.kubernetes.io/ssl-policy":"ELBSecurityPolicy-TLS-1-2-Ext-2018-06","alb.ingress.kubernetes.io/actions.ssl-redirect":"{\\"type\\": \\"redirect\\", \\"redirectConfig\\": { \\"protocol\\": \\"HTTPS\\", \\"port\\": \\"443\\", \\"statusCode\\": \\"HTTP_301\\"}}"},"tls":{"enabled":false},"rules":[{"host":"',
             {
               Ref: 'DomainName',
             },
-	          '","http":{"paths":[{"path":"/","pathType":"Prefix","backend":{"service":{"name":"ssl-redirect","port":{"number":"use-annotation"}}}},{"path":"/","pathType":"Prefix","backend":{"service":{"name":"nexus3-sonatype-nexus","port":{"number":8081}}}}]}},{"http":{"paths":[{"path":"/","pathType":"Prefix","backend":{"service":{"name":"nexus3-sonatype-nexus","port":{"number":8081}}}}]}}]},"serviceAccount":{"create":false}}',
+            '","http":{"paths":[{"path":"/","pathType":"Prefix","backend":{"service":{"name":"ssl-redirect","port":{"name":"use-annotation"}}}},{"path":"/","pathType":"Prefix","backend":{"service":{"name":"nexus3-sonatype-nexus","port":{"number":8081}}}}]}},{"http":{"paths":[{"path":"/","pathType":"Prefix","backend":{"service":{"name":"nexus3-sonatype-nexus","port":{"number":8081}}}}]}}]},"serviceAccount":{"create":false}}',
           ],
         ],
       },
@@ -266,41 +265,29 @@ describe('Nexus OSS stack', () => {
         'Fn::Join': [
           '',
           [
-            '{"statefulset":{"enabled":true},"initAdminPassword":{"enabled":true,"password":"',
+            '{"clusterName":"',
             {
-              Ref: 'NexusAdminInitPassword',
+              Ref: 'NexusCluster2168A4B1',
             },
-            '"},"nexus":{"imageName":"',
+            '","image":{"repository":"',
             {
               'Fn::FindInMap': [
-                'PartitionMapping',
+                'ALBImageMapping',
                 {
-                  Ref: 'AWS::Partition',
+                  Ref: 'AWS::Region',
                 },
-                'nexus',
+                '2',
               ],
             },
-            '","resources":{"requests":{"memory":"4800Mi"}},"livenessProbe":{"path":"/"}},"nexusProxy":{"enabled":false},"persistence":{"enabled":true,"storageClass":"efs-sc","accessMode":"ReadWriteMany"},"nexusBackup":{"enabled":false,"persistence":{"enabled":false}},"nexusCloudiam":{"enabled":false,"persistence":{"enabled":false}},"ingress":{"enabled":true,"path":"/*","annotations":{"alb.ingress.kubernetes.io/backend-protocol":"HTTP","alb.ingress.kubernetes.io/healthcheck-path":"/","alb.ingress.kubernetes.io/healthcheck-port":8081,"alb.ingress.kubernetes.io/listen-ports":"[{\\"HTTP\\": 80}, {\\"HTTPS\\": 443}]","alb.ingress.kubernetes.io/scheme":"internet-facing","alb.ingress.kubernetes.io/inbound-cidrs":"0.0.0.0/0","alb.ingress.kubernetes.io/auth-type":"none","alb.ingress.kubernetes.io/target-type":"ip","kubernetes.io/ingress.class":"alb","alb.ingress.kubernetes.io/tags":"app=nexus3","alb.ingress.kubernetes.io/subnets":"',
+            '.dkr.ecr.',
             {
-              Ref: 'NexusOSSVpcPublicSubnet1SubnetE287B3FC',
+              Ref: 'AWS::Region',
             },
-            ',',
+            '.',
             {
-              Ref: 'NexusOSSVpcPublicSubnet2Subnet8D595BFF',
+              Ref: 'AWS::URLSuffix',
             },
-            '","alb.ingress.kubernetes.io/load-balancer-attributes":"access_logs.s3.enabled=true,access_logs.s3.bucket=',
-            {
-              Ref: 'LogBucketCC3B17E8',
-            },
-            ',access_logs.s3.prefix=albAccessLog","alb.ingress.kubernetes.io/certificate-arn":"',
-            {
-              Ref: 'SSLCertificate2E93C565',
-            },
-            '","alb.ingress.kubernetes.io/ssl-policy":"ELBSecurityPolicy-TLS-1-2-Ext-2018-06","alb.ingress.kubernetes.io/actions.ssl-redirect":"{\\"Type\\": \\"redirect\\", \\"RedirectConfig\\": { \\"Protocol\\": \\"HTTPS\\", \\"Port\\": \\"443\\", \\"StatusCode\\": \\"HTTP_301\\"}}"},"tls":{"enabled":false},"rules":[{"host":"',
-            {
-              Ref: 'DomainName',
-            },
-            '","http":{"paths":[{"path":"/","pathType":"Prefix","backend":{"service":{"name":"ssl-redirect","port":{"number":"use-annotation"}}}},{"path":"/","pathType":"Prefix","backend":{"service":{"name":"nexus3-sonatype-nexus","port":{"number":8081}}}}]}},{"http":{"paths":[{"path":"/","pathType":"Prefix","backend":{"service":{"name":"nexus3-sonatype-nexus","port":{"number":8081}}}}]}}]},"serviceAccount":{"create":false},"config":{"enabled":true,"data":{"nexus.properties":"nexus.scripts.allowCreation=true"}},"deployment":{"additionalVolumeMounts":[{"mountPath":"/nexus-data/etc/nexus.properties","subPath":"nexus.properties","name":"sonatype-nexus-conf"}]}}',
+            '/amazon/aws-load-balancer-controller"},"serviceAccount":{"create":false,"name":"aws-load-balancer-controller"},"enableShield":false,"enableWaf":false,"enableWafv2":false}',
           ],
         ],
       },
@@ -372,7 +359,7 @@ describe('Nexus OSS stack', () => {
     Template.fromStack(stack).hasResourceProperties('Custom::AWSCDK-EKS-HelmChart', {
       Release: 'aws-load-balancer-controller',
       Chart: 'aws-load-balancer-controller',
-      Version: '2.4.3',
+      Version: '1.4.4',
       Repository: {
         'Fn::FindInMap': [
           'PartitionMapping',

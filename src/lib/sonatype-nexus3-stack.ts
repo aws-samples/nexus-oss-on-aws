@@ -593,7 +593,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
           paths: [
             {
               path: '/',
-              pathType: 'Exact',
+              pathType: 'Prefix',
               backend: {
                 service: {
                   name: 'ssl-redirect',
@@ -605,7 +605,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
             },
             {
               path: '/',
-              pathType: 'Exact',
+              pathType: 'Prefix',
               backend: {
                 service: {
                   name: `${nexus3ChartName}-sonatype-nexus`,
