@@ -1,28 +1,27 @@
 /* eslint @typescript-eslint/no-require-imports: "off" */
 import * as path from 'path';
-import * as certmgr from '@aws-cdk/aws-certificatemanager';
-import * as ec2 from '@aws-cdk/aws-ec2';
-import * as efs from '@aws-cdk/aws-efs';
-import * as eks from '@aws-cdk/aws-eks';
-import * as iam from '@aws-cdk/aws-iam';
-import * as lambda from '@aws-cdk/aws-lambda';
-import * as lambda_python from '@aws-cdk/aws-lambda-python';
-import * as logs from '@aws-cdk/aws-logs';
-import * as route53 from '@aws-cdk/aws-route53';
-import * as s3 from '@aws-cdk/aws-s3';
-import * as cdk from '@aws-cdk/core';
-import {
-  AwsCustomResource,
-  AwsCustomResourcePolicy,
-} from '@aws-cdk/custom-resources';
-import { AwsCliLayer } from '@aws-cdk/lambda-layer-awscli';
-import { KubectlLayer } from '@aws-cdk/lambda-layer-kubectl';
+import * as lambda_python from '@aws-cdk/aws-lambda-python-alpha';
+import * as cdk from 'aws-cdk-lib';
+import * as certmgr from 'aws-cdk-lib/aws-certificatemanager';
+import * as ec2 from 'aws-cdk-lib/aws-ec2';
+import * as efs from 'aws-cdk-lib/aws-efs';
+import * as eks from 'aws-cdk-lib/aws-eks';
+import * as iam from 'aws-cdk-lib/aws-iam';
+import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as logs from 'aws-cdk-lib/aws-logs';
+import * as route53 from 'aws-cdk-lib/aws-route53';
+import * as s3 from 'aws-cdk-lib/aws-s3';
+import { AwsCliLayer } from 'aws-cdk-lib/lambda-layer-awscli';
+import { KubectlLayer } from 'aws-cdk-lib/lambda-layer-kubectl';
+import { IConstruct, Construct } from 'constructs';
+// @ts-ignore
 import * as pjson from '../../package.json';
+
 const assert = require('assert').strict;
 
 export class SonatypeNexus3Stack extends cdk.Stack {
 
-  constructor(scope: cdk.Construct, id: string, props?: cdk.StackProps) {
+  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
     const targetRegion = this.node.tryGetContext('region') ?? 'us-east-1';
@@ -200,14 +199,18 @@ export class SonatypeNexus3Stack extends cdk.Stack {
     });
 
     if (importedEks) {
-      if (!vpcId) {throw new Error('Context variable "vpcId" must be specified for imported EKS cluster.');}
+      if (!vpcId) {
+        throw new Error('Context variable "vpcId" must be specified for imported EKS cluster.');
+      }
 
       const clusterName = this.node.tryGetContext('eksClusterName');
       const kubectlRoleArn = this.node.tryGetContext('eksKubectlRoleArn');
       const openIdConnectProviderArn = this.node.tryGetContext('eksOpenIdConnectProviderArn');
       const nodeGroupRoleArn = this.node.tryGetContext('nodeGroupRoleArn');
 
-      if (!clusterName || !kubectlRoleArn || !openIdConnectProviderArn || !nodeGroupRoleArn) {throw new Error('Context variables "eksClusterName", "eksKubectlRoleArn", "eksOpenIdConnectProviderArn", "nodeGroupRoleArn" must be specified for imported EKS cluster.');}
+      if (!clusterName || !kubectlRoleArn || !openIdConnectProviderArn || !nodeGroupRoleArn) {
+        throw new Error('Context variables "eksClusterName", "eksKubectlRoleArn", "eksOpenIdConnectProviderArn", "nodeGroupRoleArn" must be specified for imported EKS cluster.');
+      }
 
       cluster = eks.Cluster.fromClusterAttributes(this, 'ImportedEKS', {
         clusterName,
@@ -248,8 +251,12 @@ export class SonatypeNexus3Stack extends cdk.Stack {
         mastersRole: clusterAdmin,
         version: eks.KubernetesVersion.of(eksVersion.valueAsString),
         coreDnsComputeType: isFargetEnabled ? eks.CoreDnsComputeType.FARGATE : eks.CoreDnsComputeType.EC2,
+        clusterLogging: [
+          eks.ClusterLoggingTypes.API,
+          eks.ClusterLoggingTypes.AUTHENTICATOR,
+          eks.ClusterLoggingTypes.SCHEDULER,
+        ],
       });
-      this.setupClusterLogging(cluster);
 
       if (isFargetEnabled) {
         (cluster as eks.Cluster).addFargateProfile('FargetProfile', {
@@ -322,7 +329,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
     }
 
     // install AWS load balancer via Helm charts
-    const awsLoadBalancerControllerVersion = 'v2.4.1';
+    const awsLoadBalancerControllerVersion = 'v2.4.3';
     const awsControllerBaseResourceBaseUrl = `https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/${awsLoadBalancerControllerVersion}/docs`;
     const awsControllerPolicyUrl = `${awsControllerBaseResourceBaseUrl}/install/iam_policy${targetRegion.startsWith('cn-') ? '_cn' : ''}.json`;
     const albNamespace = 'kube-system';
@@ -364,7 +371,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       repository: partitionMapping.findInMap(cdk.Aws.PARTITION, 'albHelmChartRepo'),
       namespace: albNamespace,
       release: 'aws-load-balancer-controller',
-      version: '1.4.1', // mapping to v2.4.1
+      version: '1.4.4', // mapping to v2.4.3
       wait: true,
       timeout: cdk.Duration.minutes(15),
       values: {
@@ -457,8 +464,8 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       namespace: nexus3Namespace,
     });
 
-    nexusServiceAccount.addToPolicy(s3BucketPolicy);
-    nexusServiceAccount.addToPolicy(s3ObjectPolicy);
+    nexusServiceAccount.addToPrincipalPolicy(s3BucketPolicy);
+    nexusServiceAccount.addToPrincipalPolicy(s3ObjectPolicy);
 
     const albLogServiceAccountMapping = new cdk.CfnMapping(this, 'ALBServiceAccountMapping', {
       mapping: {
@@ -553,19 +560,19 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       'alb.ingress.kubernetes.io/subnets': vpc.publicSubnets.map(subnet => subnet.subnetId).join(','),
       'alb.ingress.kubernetes.io/load-balancer-attributes': `access_logs.s3.enabled=true,access_logs.s3.bucket=${logBucket.bucketName},access_logs.s3.prefix=${albLogPrefix}`,
     };
-    const ingressRules : Array<any> = [
+    const ingressRules: Array<any> = [
       {
         http: {
           paths: [
             {
               path: '/',
-	      pathType: 'Prefix',
+              pathType: 'Prefix',
               backend: {
                 service: {
                   name: `${nexus3ChartName}-sonatype-nexus`,
-		  port: {
-		    number: nexusPort,
-	       },
+                  port: {
+                    number: nexusPort,
+                  },
                 },
               },
             },
@@ -573,13 +580,13 @@ export class SonatypeNexus3Stack extends cdk.Stack {
         },
       },
     ];
-    var externalDNSResource: cdk.Construct;
+    var externalDNSResource: Construct;
     if (certificate) {
       Object.assign(albOptions, {
         'alb.ingress.kubernetes.io/certificate-arn': certificate.certificateArn,
         'alb.ingress.kubernetes.io/ssl-policy': 'ELBSecurityPolicy-TLS-1-2-Ext-2018-06',
         'alb.ingress.kubernetes.io/listen-ports': '[{"HTTP": 80}, {"HTTPS": 443}]',
-        'alb.ingress.kubernetes.io/actions.ssl-redirect': '{"Type": "redirect", "RedirectConfig": { "Protocol": "HTTPS", "Port": "443", "StatusCode": "HTTP_301"}}',
+        'alb.ingress.kubernetes.io/actions.ssl-redirect': '{"type": "redirect", "redirectConfig": { "protocol": "HTTPS", "port": "443", "statusCode": "HTTP_301"}}',
       });
 
       ingressRules.splice(0, 0, {
@@ -588,26 +595,26 @@ export class SonatypeNexus3Stack extends cdk.Stack {
           paths: [
             {
               path: '/',
-	      pathType: 'Prefix',
+              pathType: 'Prefix',
               backend: {
                 service: {
                   name: 'ssl-redirect',
                   port: {
-		    number: 'use-annotation',
-		   },
-		 },
+                    name: 'use-annotation',
+                  },
+                },
               },
             },
             {
               path: '/',
-	      pathType: 'Prefix',
+              pathType: 'Prefix',
               backend: {
                 service: {
                   name: `${nexus3ChartName}-sonatype-nexus`,
                   port: {
-		    number: nexusPort,
-           	 },
-	        },
+                    number: nexusPort,
+                  },
+                },
               },
             },
           ],
@@ -637,14 +644,16 @@ export class SonatypeNexus3Stack extends cdk.Stack {
 
         resources: [hostedZone!.hostedZoneArn!],
       });
-      externalDNSServiceAccount.addToPolicy(r53ListPolicy);
-      externalDNSServiceAccount.addToPolicy(r53UpdateRecordPolicy!);
+      externalDNSServiceAccount.addToPrincipalPolicy(r53ListPolicy);
+      externalDNSServiceAccount.addToPrincipalPolicy(r53UpdateRecordPolicy!);
 
       const externalDNSResources = yaml.safeLoadAll(
         request('GET', `${awsControllerBaseResourceBaseUrl}/examples/external-dns.yaml`)
           .getBody('utf-8').replace('external-dns-test.my-org.com', r53Domain ?? '')
           .replace('my-identifier', 'nexus3'))
-        .filter((res: any) => { return res.kind != 'ServiceAccount'; })
+        .filter((res: any) => {
+          return res.kind != 'ServiceAccount';
+        })
         .map((res: any) => {
           if (res.kind === 'Deployment') {
             res.spec.template.spec.containers[0].env = [
@@ -670,7 +679,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
       entry: path.join(__dirname, '../lambda.d/nexus3-purge'),
       index: 'index.py',
       handler: 'handler',
-      runtime: lambda.Runtime.PYTHON_3_7,
+      runtime: lambda.Runtime.PYTHON_3_9,
       environment: cluster.kubectlEnvironment,
       logRetention: logs.RetentionDays.ONE_MONTH,
       timeout: cdk.Duration.minutes(15),
@@ -814,7 +823,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
           entry: path.join(__dirname, '../lambda.d/nexuspreconfigure'),
           index: 'index.py',
           handler: 'handler',
-          runtime: lambda.Runtime.PYTHON_3_8,
+          runtime: lambda.Runtime.PYTHON_3_9,
           logRetention: logs.RetentionDays.ONE_MONTH,
           timeout: cdk.Duration.minutes(5),
           vpc: vpc,
@@ -849,7 +858,9 @@ export class SonatypeNexus3Stack extends cdk.Stack {
               }
 
             });
-            nexus3AutoConfigureCR.node.children.forEach(r => { (r as cdk.CfnResource).cfnOptions.condition = eksV119; });
+            nexus3AutoConfigureCR.node.children.forEach(r => {
+              (r as cdk.CfnResource).cfnOptions.condition = eksV119;
+            });
           }
         };
         addCondition();
@@ -857,7 +868,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
     }
 
     cdk.Aspects.of(cdk.Stack.of(cluster)).add({
-      visit: (node: cdk.IConstruct) => {
+      visit: (node: IConstruct) => {
         if (node instanceof lambda.CfnFunction) {
           node.addPropertyOverride('Environment.Variables.AWS_STS_REGIONAL_ENDPOINTS', 'regional');
         }
@@ -967,59 +978,5 @@ export class SonatypeNexus3Stack extends cdk.Stack {
 
   private azOfSubnets(subnets: ec2.ISubnet[]): number {
     return new Set(subnets.map(subnet => subnet.availabilityZone)).size;
-  }
-
-  setupClusterLogging(cluster: eks.ICluster): void {
-    new AwsCustomResource(this, 'ClusterLogsEnabler', {
-      policy: AwsCustomResourcePolicy.fromSdkCalls({
-        resources: [`${cluster.clusterArn}/update-config`],
-      }),
-      onCreate: {
-        physicalResourceId: { id: `${cluster.clusterArn}/LogsEnabler` },
-        service: 'EKS',
-        action: 'updateClusterConfig',
-        region: this.region,
-        parameters: {
-          name: cluster.clusterName,
-          logging: {
-            clusterLogging: [
-              {
-                enabled: true,
-                types: [
-                  'api',
-                  'audit',
-                  'authenticator',
-                  'controllerManager',
-                  'scheduler',
-                ],
-              },
-            ],
-          },
-        },
-      },
-      onDelete: {
-        physicalResourceId: { id: `${cluster.clusterArn}/LogsEnabler` },
-        service: 'EKS',
-        action: 'updateClusterConfig',
-        region: this.region,
-        parameters: {
-          name: cluster.clusterName,
-          logging: {
-            clusterLogging: [
-              {
-                enabled: false,
-                types: [
-                  'api',
-                  'audit',
-                  'authenticator',
-                  'controllerManager',
-                  'scheduler',
-                ],
-              },
-            ],
-          },
-        },
-      },
-    });
   }
 }

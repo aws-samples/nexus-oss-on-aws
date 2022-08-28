@@ -1,9 +1,8 @@
 #!/usr/bin/env node
-import * as cdk from '@aws-cdk/core';
+import * as cdk from 'aws-cdk-lib';
 import { SonatypeNexus3Stack } from './lib/sonatype-nexus3-stack';
 
 const app = new cdk.App();
-
 const vpcId = app.node.tryGetContext('vpcId');
 const env = vpcId ? {
   account: process.env.CDK_DEFAULT_ACCOUNT,

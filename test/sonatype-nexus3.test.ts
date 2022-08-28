@@ -1,15 +1,16 @@
-import { ResourcePart } from '@aws-cdk/assert/lib/assertions/have-resource';
-import * as cdk from '@aws-cdk/core';
-import * as cxapi from '@aws-cdk/cx-api';
+import * as cdk from 'aws-cdk-lib';
+import { Template } from 'aws-cdk-lib/assertions';
+import * as cxapi from 'aws-cdk-lib/cx-api';
+import { Construct } from 'constructs';
 import * as SonatypeNexus3 from '../src/lib/sonatype-nexus3-stack';
+// @ts-ignore
 import * as mock from './context-provider-mock';
-import '@aws-cdk/assert/jest';
 
 describe('Nexus OSS stack', () => {
   let app: cdk.App;
   let stack: cdk.Stack;
   const vpcId = 'vpc-123456';
-  let previous: (scope: cdk.Construct, options: cdk.GetContextValueOptions) => cdk.GetContextValueResult;
+  let previous: (scope: Construct, options: cdk.GetContextValueOptions) => cdk.GetContextValueResult;
 
   const defaultContext = {
     enableR53HostedZone: true,
@@ -82,10 +83,9 @@ describe('Nexus OSS stack', () => {
   });
 
   test('Nexus Stack is created', () => {
-    expect(stack).toHaveResourceLike('AWS::CloudFormation::Stack', {
-    });
+    Template.fromStack(stack).hasResource('AWS::CloudFormation::Stack', {});
 
-    expect(stack).toHaveResourceLike('Custom::AWSCDK-EKS-HelmChart', {
+    Template.fromStack(stack).hasResourceProperties('Custom::AWSCDK-EKS-HelmChart', {
       Values: {
         'Fn::Join': [
           '',
@@ -120,11 +120,11 @@ describe('Nexus OSS stack', () => {
             {
               Ref: 'SSLCertificate2E93C565',
             },
-            '","alb.ingress.kubernetes.io/ssl-policy":"ELBSecurityPolicy-TLS-1-2-Ext-2018-06","alb.ingress.kubernetes.io/actions.ssl-redirect":"{\\"Type\\": \\"redirect\\", \\"RedirectConfig\\": { \\"Protocol\\": \\"HTTPS\\", \\"Port\\": \\"443\\", \\"StatusCode\\": \\"HTTP_301\\"}}"},"tls":{"enabled":false},"rules":[{"host":"',
+            '","alb.ingress.kubernetes.io/ssl-policy":"ELBSecurityPolicy-TLS-1-2-Ext-2018-06","alb.ingress.kubernetes.io/actions.ssl-redirect":"{\\"type\\": \\"redirect\\", \\"redirectConfig\\": { \\"protocol\\": \\"HTTPS\\", \\"port\\": \\"443\\", \\"statusCode\\": \\"HTTP_301\\"}}"},"tls":{"enabled":false},"rules":[{"host":"',
             {
               Ref: 'DomainName',
             },
-	          '","http":{"paths":[{"path":"/","pathType":"Prefix","backend":{"service":{"name":"ssl-redirect","port":{"number":"use-annotation"}}}},{"path":"/","pathType":"Prefix","backend":{"service":{"name":"nexus3-sonatype-nexus","port":{"number":8081}}}}]}},{"http":{"paths":[{"path":"/","pathType":"Prefix","backend":{"service":{"name":"nexus3-sonatype-nexus","port":{"number":8081}}}}]}}]},"serviceAccount":{"create":false}}',
+            '","http":{"paths":[{"path":"/","pathType":"Prefix","backend":{"service":{"name":"ssl-redirect","port":{"name":"use-annotation"}}}},{"path":"/","pathType":"Prefix","backend":{"service":{"name":"nexus3-sonatype-nexus","port":{"number":8081}}}}]}},{"http":{"paths":[{"path":"/","pathType":"Prefix","backend":{"service":{"name":"nexus3-sonatype-nexus","port":{"number":8081}}}}]}}]},"serviceAccount":{"create":false}}',
           ],
         ],
       },
@@ -147,7 +147,7 @@ describe('Nexus OSS stack', () => {
   });
 
   test('eks cluster is created with proper configuration', () => {
-    expect(stack).toHaveResourceLike('Custom::AWSCDK-EKS-Cluster', {
+    Template.fromStack(stack).hasResourceProperties('Custom::AWSCDK-EKS-Cluster', {
       Config: {
         version: {
           Ref: 'KubernetesVersion',
@@ -194,11 +194,11 @@ describe('Nexus OSS stack', () => {
     };
     ({ app, stack } = initializeStackWithContextsAndEnvs(app, stack, context));
 
-    expect(stack).toCountResources('AWS::CertificateManager::Certificate', 0);
+    Template.fromStack(stack).resourceCountIs('AWS::CertificateManager::Certificate', 0);
   });
 
   test('ssl certificate with R53 hosted zone when enabling R53 hosted zone', () => {
-    expect(stack).toHaveResourceLike('AWS::CertificateManager::Certificate', {
+    Template.fromStack(stack).hasResourceProperties('AWS::CertificateManager::Certificate', {
       DomainName: {
         Ref: 'DomainName',
       },
@@ -223,11 +223,11 @@ describe('Nexus OSS stack', () => {
     };
     ({ app, stack } = initializeStackWithContextsAndEnvs(app, stack, context));
 
-    expect(stack).toHaveResource('AWS::EC2::VPC', {
+    Template.fromStack(stack).hasResourceProperties('AWS::EC2::VPC', {
       CidrBlock: '10.0.0.0/16',
     });
 
-    expect(stack).toHaveResourceLike('AWS::EC2::LaunchTemplate', {
+    Template.fromStack(stack).hasResourceProperties('AWS::EC2::LaunchTemplate', {
       LaunchTemplateData: {
         BlockDeviceMappings: [
           {
@@ -243,7 +243,7 @@ describe('Nexus OSS stack', () => {
         },
       },
     });
-    expect(stack).toHaveResourceLike('AWS::EKS::Nodegroup', {
+    Template.fromStack(stack).hasResourceProperties('AWS::EKS::Nodegroup', {
       InstanceTypes: ['m5.xlarge'],
       LaunchTemplate: {
         Id: {
@@ -260,52 +260,40 @@ describe('Nexus OSS stack', () => {
     };
     ({ app, stack } = initializeStackWithContextsAndEnvs(app, stack, context));
 
-    expect(stack).toHaveResourceLike('Custom::AWSCDK-EKS-HelmChart', {
+    Template.fromStack(stack).hasResourceProperties('Custom::AWSCDK-EKS-HelmChart', {
       Values: {
         'Fn::Join': [
           '',
           [
-            '{"statefulset":{"enabled":true},"initAdminPassword":{"enabled":true,"password":"',
+            '{"clusterName":"',
             {
-              Ref: 'NexusAdminInitPassword',
+              Ref: 'NexusCluster2168A4B1',
             },
-            '"},"nexus":{"imageName":"',
+            '","image":{"repository":"',
             {
               'Fn::FindInMap': [
-                'PartitionMapping',
+                'ALBImageMapping',
                 {
-                  Ref: 'AWS::Partition',
+                  Ref: 'AWS::Region',
                 },
-                'nexus',
+                '2',
               ],
             },
-            '","resources":{"requests":{"memory":"4800Mi"}},"livenessProbe":{"path":"/"}},"nexusProxy":{"enabled":false},"persistence":{"enabled":true,"storageClass":"efs-sc","accessMode":"ReadWriteMany"},"nexusBackup":{"enabled":false,"persistence":{"enabled":false}},"nexusCloudiam":{"enabled":false,"persistence":{"enabled":false}},"ingress":{"enabled":true,"path":"/*","annotations":{"alb.ingress.kubernetes.io/backend-protocol":"HTTP","alb.ingress.kubernetes.io/healthcheck-path":"/","alb.ingress.kubernetes.io/healthcheck-port":8081,"alb.ingress.kubernetes.io/listen-ports":"[{\\"HTTP\\": 80}, {\\"HTTPS\\": 443}]","alb.ingress.kubernetes.io/scheme":"internet-facing","alb.ingress.kubernetes.io/inbound-cidrs":"0.0.0.0/0","alb.ingress.kubernetes.io/auth-type":"none","alb.ingress.kubernetes.io/target-type":"ip","kubernetes.io/ingress.class":"alb","alb.ingress.kubernetes.io/tags":"app=nexus3","alb.ingress.kubernetes.io/subnets":"',
+            '.dkr.ecr.',
             {
-              Ref: 'NexusOSSVpcPublicSubnet1SubnetE287B3FC',
+              Ref: 'AWS::Region',
             },
-            ',',
+            '.',
             {
-              Ref: 'NexusOSSVpcPublicSubnet2Subnet8D595BFF',
+              Ref: 'AWS::URLSuffix',
             },
-            '","alb.ingress.kubernetes.io/load-balancer-attributes":"access_logs.s3.enabled=true,access_logs.s3.bucket=',
-            {
-              Ref: 'LogBucketCC3B17E8',
-            },
-            ',access_logs.s3.prefix=albAccessLog","alb.ingress.kubernetes.io/certificate-arn":"',
-            {
-              Ref: 'SSLCertificate2E93C565',
-            },
-            '","alb.ingress.kubernetes.io/ssl-policy":"ELBSecurityPolicy-TLS-1-2-Ext-2018-06","alb.ingress.kubernetes.io/actions.ssl-redirect":"{\\"Type\\": \\"redirect\\", \\"RedirectConfig\\": { \\"Protocol\\": \\"HTTPS\\", \\"Port\\": \\"443\\", \\"StatusCode\\": \\"HTTP_301\\"}}"},"tls":{"enabled":false},"rules":[{"host":"',
-            {
-              Ref: 'DomainName',
-            },
-            '","http":{"paths":[{"path":"/","pathType":"Prefix","backend":{"service":{"name":"ssl-redirect","port":{"number":"use-annotation"}}}},{"path":"/","pathType":"Prefix","backend":{"service":{"name":"nexus3-sonatype-nexus","port":{"number":8081}}}}]}},{"http":{"paths":[{"path":"/","pathType":"Prefix","backend":{"service":{"name":"nexus3-sonatype-nexus","port":{"number":8081}}}}]}}]},"serviceAccount":{"create":false},"config":{"enabled":true,"data":{"nexus.properties":"nexus.scripts.allowCreation=true"}},"deployment":{"additionalVolumeMounts":[{"mountPath":"/nexus-data/etc/nexus.properties","subPath":"nexus.properties","name":"sonatype-nexus-conf"}]}}',
+            '/amazon/aws-load-balancer-controller"},"serviceAccount":{"create":false,"name":"aws-load-balancer-controller"},"enableShield":false,"enableWaf":false,"enableWafv2":false}',
           ],
         ],
       },
     });
 
-    expect(stack).toHaveResource('Custom::Nexus3-AutoConfigure', {
+    Template.fromStack(stack).hasResource('Custom::Nexus3-AutoConfigure', {
       Properties: {
         ServiceToken: {
           'Fn::GetAtt': [
@@ -339,9 +327,9 @@ describe('Nexus OSS stack', () => {
         'NexusClusterchartNexus37BADE970',
       ],
       Condition: 'EKSV119',
-    }, ResourcePart.CompleteDefinition);
+    });
 
-    expect(stack).toHaveResourceLike('Custom::LogRetention', {
+    Template.fromStack(stack).hasResource('Custom::LogRetention', {
       Properties: {
         LogGroupName: {
           'Fn::Join': [
@@ -356,7 +344,7 @@ describe('Nexus OSS stack', () => {
         },
       },
       Condition: 'EKSV119',
-    }, ResourcePart.CompleteDefinition);
+    });
   });
 
   test('AWS load baalancer controller helm chart is created', () => {
@@ -368,10 +356,10 @@ describe('Nexus OSS stack', () => {
       account: '123456789012',
       region: 'cn-north-1',
     }));
-    expect(stack).toHaveResourceLike('Custom::AWSCDK-EKS-HelmChart', {
+    Template.fromStack(stack).hasResourceProperties('Custom::AWSCDK-EKS-HelmChart', {
       Release: 'aws-load-balancer-controller',
       Chart: 'aws-load-balancer-controller',
-      Version: '1.4.1',
+      Version: '1.4.4',
       Repository: {
         'Fn::FindInMap': [
           'PartitionMapping',
@@ -394,7 +382,7 @@ describe('Nexus OSS stack', () => {
       region: 'cn-north-1',
     }));
 
-    expect(stack).toHaveResourceLike('Custom::AWSCDK-EKS-KubernetesResource', {
+    Template.fromStack(stack).hasResourceProperties('Custom::AWSCDK-EKS-KubernetesResource', {
       Manifest: {
         'Fn::Join': [
           '',
@@ -414,9 +402,9 @@ describe('Nexus OSS stack', () => {
   });
 
   test('custom purge lambda is expected', () => {
-    // must use runtime py_37 for awscli 1.x support
+    // must use runtime py_39 for awscli 1.x support
     // must have env 'AWS_STS_REGIONAL_ENDPOINTS' for some regions, such as ap-east-1
-    expect(stack).toHaveResourceLike('AWS::Lambda::Function', {
+    Template.fromStack(stack).hasResourceProperties('AWS::Lambda::Function', {
       Environment: {
         Variables: {
           AWS_STS_REGIONAL_ENDPOINTS: 'regional',
@@ -431,19 +419,19 @@ describe('Nexus OSS stack', () => {
           Ref: 'KubectlLayer600207B5',
         },
       ],
-      Runtime: 'python3.7',
+      Runtime: 'python3.9',
     });
   });
 
   test('correct dependencies for deleting stack', () => {
     // retain custom data after deleting stack
-    expect(stack).toHaveResourceLike('AWS::EFS::FileSystem', {
+    Template.fromStack(stack).hasResource('AWS::EFS::FileSystem', {
       UpdateReplacePolicy: 'Retain',
       DeletionPolicy: 'Retain',
-    }, ResourcePart.CompleteDefinition);
+    });
 
     // explicitly remove the sg of EFS for deleting the VPC
-    expect(stack).toHaveResourceLike('AWS::EC2::SecurityGroup', {
+    Template.fromStack(stack).hasResource('AWS::EC2::SecurityGroup', {
       Properties: {
         SecurityGroupIngress: [
           {
@@ -462,10 +450,16 @@ describe('Nexus OSS stack', () => {
       },
       UpdateReplacePolicy: 'Delete',
       DeletionPolicy: 'Delete',
-    }, ResourcePart.CompleteDefinition);
+    });
 
-    expect(stack).toHaveResourceLike('Custom::Nexus3-Purge', {
+    Template.fromStack(stack).hasResource('Custom::Nexus3-Purge', {
       Properties: {
+        ServiceToken: {
+          'Fn::GetAtt': [
+            'Nexus3PurgeE46D0DF0',
+            'Arn',
+          ],
+        },
         ClusterName: {
           Ref: 'NexusCluster2168A4B1',
         },
@@ -485,10 +479,13 @@ describe('Nexus OSS stack', () => {
       DependsOn: [
         'NexusClusterchartAWSLoadBalancerController06E2710B',
         'NexusClustermanifestefspv19E0A105',
+        'SSLCertificate2E93C565',
       ],
-    }, ResourcePart.CompleteDefinition);
+      UpdateReplacePolicy: 'Delete',
+      DeletionPolicy: 'Delete',
+    });
 
-    expect(stack).toHaveResourceLike('Custom::AWSCDK-EKS-HelmChart', {
+    Template.fromStack(stack).hasResource('Custom::AWSCDK-EKS-HelmChart', {
       Properties: {
         Release: 'nexus3',
         Chart: 'sonatype-nexus',
@@ -503,11 +500,11 @@ describe('Nexus OSS stack', () => {
         'NexusClustersonatypenexus3RoleFE3455FB',
         'SSLCertificate2E93C565',
       ],
-    }, ResourcePart.CompleteDefinition);
+    });
   });
 
   test('the encryption configuration of storages.', () => {
-    expect(stack).toHaveResourceLike('AWS::S3::Bucket', {
+    Template.fromStack(stack).hasResourceProperties('AWS::S3::Bucket', {
       BucketEncryption: {
         ServerSideEncryptionConfiguration: [
           {
@@ -519,13 +516,13 @@ describe('Nexus OSS stack', () => {
       },
     });
 
-    expect(stack).toHaveResourceLike('AWS::EFS::FileSystem', {
+    Template.fromStack(stack).hasResourceProperties('AWS::EFS::FileSystem', {
       Encrypted: true,
     });
   });
 
   test('bucket policy of log bucket, including, access log of ALB created by AWS load balancer controller, vpc flow logs.', () => {
-    expect(stack).toHaveResourceLike('AWS::S3::BucketPolicy', {
+    Template.fromStack(stack).hasResourceProperties('AWS::S3::BucketPolicy', {
       Bucket: {
         Ref: 'LogBucketCC3B17E8',
       },
@@ -581,7 +578,11 @@ describe('Nexus OSS stack', () => {
           },
           {
             Action: [
-              's3:PutObject*',
+              's3:PutObject',
+              's3:PutObjectLegalHold',
+              's3:PutObjectRetention',
+              's3:PutObjectTagging',
+              's3:PutObjectVersionTagging',
               's3:Abort*',
             ],
             Effect: 'Allow',
@@ -640,9 +641,9 @@ describe('Nexus OSS stack', () => {
     };
     ({ app, stack } = initializeStackWithContextsAndEnvs(app, stack, context));
 
-    expect(stack).toCountResources('AWS::CertificateManager::Certificate', 0);
+    Template.fromStack(stack).resourceCountIs('AWS::CertificateManager::Certificate', 0);
 
-    expect(stack).toHaveResourceLike('Custom::AWSCDK-EKS-HelmChart', {
+    Template.fromStack(stack).hasResourceProperties('Custom::AWSCDK-EKS-HelmChart', {
       Release: 'nexus3',
       Values: {
         'Fn::Join': [
@@ -703,8 +704,8 @@ describe('Nexus OSS stack', () => {
       region: 'cn-north-1',
     }));
 
-    expect(stack).toCountResources('Custom::AWSCDK-EKS-Cluster', 0);
-    expect(stack).toCountResources('AWS::EKS::Nodegroup', 0);
+    Template.fromStack(stack).resourceCountIs('Custom::AWSCDK-EKS-Cluster', 0);
+    Template.fromStack(stack).resourceCountIs('AWS::EKS::Nodegroup', 0);
   });
 
 });
