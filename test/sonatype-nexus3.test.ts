@@ -402,7 +402,7 @@ describe('Nexus OSS stack', () => {
   });
 
   test('custom purge lambda is expected', () => {
-    // must use runtime py_37 for awscli 1.x support
+    // must use runtime py_39 for awscli 1.x support
     // must have env 'AWS_STS_REGIONAL_ENDPOINTS' for some regions, such as ap-east-1
     Template.fromStack(stack).hasResourceProperties('AWS::Lambda::Function', {
       Environment: {
@@ -419,7 +419,7 @@ describe('Nexus OSS stack', () => {
           Ref: 'KubectlLayer600207B5',
         },
       ],
-      Runtime: 'python3.7',
+      Runtime: 'python3.9',
     });
   });
 

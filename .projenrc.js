@@ -8,6 +8,7 @@ const project = new awscdk.AwsCdkTypeScriptApp({
   deps: [
     'js-yaml@^3.14.1',
     'sync-request@^6.1.0',
+    '@aws-cdk/aws-lambda-python-alpha',
   ], /* Runtime dependencies of this module. */
   // description: undefined,            /* The description is just a string that helps people understand the purpose of the package. */
   devDeps: [

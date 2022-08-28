@@ -86,6 +86,10 @@
       "type": "build"
     },
     {
+      "name": "@aws-cdk/aws-lambda-python-alpha",
+      "type": "runtime"
+    },
+    {
       "name": "aws-cdk-lib",
       "version": "2.37.1",
       "type": "runtime"

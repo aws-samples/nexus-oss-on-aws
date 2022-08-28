@@ -1,4 +1,6 @@
 /* eslint @typescript-eslint/no-require-imports: "off" */
+import * as path from 'path';
+import * as lambda_python from '@aws-cdk/aws-lambda-python-alpha';
 import * as cdk from 'aws-cdk-lib';
 import * as certmgr from 'aws-cdk-lib/aws-certificatemanager';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
@@ -672,11 +674,12 @@ export class SonatypeNexus3Stack extends cdk.Stack {
     const enableAutoConfigured: boolean = this.node.tryGetContext('enableAutoConfigured') || false;
     const nexus3ChartVersion = '5.4.0';
 
-    const nexus3PurgeFunc = new lambda.Function(this, 'Nexus3Purge', {
+    const nexus3PurgeFunc = new lambda_python.PythonFunction(this, 'Nexus3Purge', {
       description: 'Func purges the resources(such as pvc) left after deleting Nexus3 helm chart',
-      code: lambda.Code.fromAsset('src/lambda.d/nexus3-purge'),
-      handler: 'index.handler',
-      runtime: lambda.Runtime.PYTHON_3_7,
+      entry: path.join(__dirname, '../lambda.d/nexus3-purge'),
+      index: 'index.py',
+      handler: 'handler',
+      runtime: lambda.Runtime.PYTHON_3_9,
       environment: cluster.kubectlEnvironment,
       logRetention: logs.RetentionDays.ONE_MONTH,
       timeout: cdk.Duration.minutes(15),
@@ -816,10 +819,11 @@ export class SonatypeNexus3Stack extends cdk.Stack {
     if (enableAutoConfigured) {
       const nexusEndpointHostname = `http://${albAddress.value}`;
       if (nexusEndpointHostname) {
-        const autoConfigureFunc = new lambda.Function(this, 'Neuxs3AutoCofingure', {
-          code: lambda.Code.fromAsset('src/lambda.d/nexuspreconfigure'),
-          handler: 'index.handler',
-          runtime: lambda.Runtime.PYTHON_3_8,
+        const autoConfigureFunc = new lambda_python.PythonFunction(this, 'Neuxs3AutoCofingure', {
+          entry: path.join(__dirname, '../lambda.d/nexuspreconfigure'),
+          index: 'index.py',
+          handler: 'handler',
+          runtime: lambda.Runtime.PYTHON_3_9,
           logRetention: logs.RetentionDays.ONE_MONTH,
           timeout: cdk.Duration.minutes(5),
           vpc: vpc,
