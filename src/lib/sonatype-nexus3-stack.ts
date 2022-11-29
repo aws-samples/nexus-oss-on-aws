@@ -33,7 +33,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
           nexusProxy: 'quay.io/travelaudience/docker-nexus-proxy',
           albHelmChartRepo: 'https://aws.github.io/eks-charts',
           efsCSIHelmChartRepo: 'https://kubernetes-sigs.github.io/aws-efs-csi-driver/',
-          nexusHelmChartRepo: 'https://oteemo.github.io/charts/',
+          nexusHelmChartRepo: 'https://da-code-a.github.io/noteemo-charts/',
         },
         'aws-cn': {
           nexus: '048912060910.dkr.ecr.cn-northwest-1.amazonaws.com.cn/quay/travelaudience/docker-nexus',
@@ -672,7 +672,7 @@ export class SonatypeNexus3Stack extends cdk.Stack {
     }
 
     const enableAutoConfigured: boolean = this.node.tryGetContext('enableAutoConfigured') || false;
-    const nexus3ChartVersion = '5.4.0';
+    const nexus3ChartVersion = '6.0.0';
 
     const nexus3PurgeFunc = new lambda_python.PythonFunction(this, 'Nexus3Purge', {
       description: 'Func purges the resources(such as pvc) left after deleting Nexus3 helm chart',

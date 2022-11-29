@@ -138,7 +138,7 @@ Also this application uses below open source projects,
 
 - [Nexus OSS](https://github.com/sonatype/nexus-public)
 - [travelaudience/kubernetes-nexus](https://github.com/travelaudience/kubernetes-nexus/) 
-- Nexus3 Helm chart in [Oteemo/charts](https://github.com/Oteemo/charts)
+- Nexus3 Helm chart in [da-code-a/noteemo-charts](https://github.com/da-code-a)
 - [AWS Load Balancer Controller](https://github.com/kubernetes-sigs/aws-load-balancer-controller)
 - [EKS Charts](https://github.com/aws/eks-charts)
 - [aws-efs-csi-driver](https://github.com/kubernetes-sigs/aws-efs-csi-driver)
