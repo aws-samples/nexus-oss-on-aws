@@ -2,9 +2,9 @@ import * as cdk from 'aws-cdk-lib';
 import { Template } from 'aws-cdk-lib/assertions';
 import * as cxapi from 'aws-cdk-lib/cx-api';
 import { Construct } from 'constructs';
+import * as mock from './context-provider-mock';
 import * as SonatypeNexus3 from '../src/lib/sonatype-nexus3-stack';
 // @ts-ignore
-import * as mock from './context-provider-mock';
 
 describe('Nexus OSS stack', () => {
   let app: cdk.App;
